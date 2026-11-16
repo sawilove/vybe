@@ -3,7 +3,10 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 
+export 'glass.dart';
 export 'logo.dart';
+
+import 'glass.dart';
 
 /// Album art with a branded placeholder for tracks without artwork.
 class Artwork extends StatelessWidget {
@@ -210,22 +213,20 @@ class EmptyState extends StatelessWidget {
 
 /// Glassy rounded panel used for the sidebar, now-playing panel, etc.
 class Panel extends StatelessWidget {
-  const Panel({super.key, required this.child, this.padding = EdgeInsets.zero, this.color = VybeColors.surface});
+  const Panel({
+    super.key,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+    this.color = VybeColors.surface,
+    this.accents = const GlassAccents(rimStrength: 0.5),
+  });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color color;
+  final GlassAccents accents;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VybeRadius.lg),
-        side: const BorderSide(color: VybeColors.border),
-      ),
-      child: Padding(padding: padding, child: child),
-    );
-  }
+  Widget build(BuildContext context) =>
+      GlassSurface(color: color, padding: padding, accents: accents, child: child);
 }

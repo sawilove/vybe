@@ -290,6 +290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     Widget section(String title, List<Widget> children) => Padding(
           padding: const EdgeInsets.only(bottom: 20),
           child: Panel(
+            accents: const GlassAccents(glowCorner: Alignment.topLeft, rimStrength: 0.7),
             padding: const EdgeInsets.all(20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),

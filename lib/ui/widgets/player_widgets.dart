@@ -164,13 +164,10 @@ class PlayerBar extends ConsumerWidget {
     final track = ref.watch(playerProvider.select((s) => s.current));
     final t = Theme.of(context).textTheme;
     final compact = MediaQuery.sizeOf(context).width < 1200;
-    return Container(
-      height: 84,
+    final bar = Container(
+      height: 83,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: VybeColors.surface,
-        border: Border(top: BorderSide(color: VybeColors.border)),
-      ),
+      color: VybeColors.surface.withValues(alpha: 0.92),
       child: Row(
         children: [
           SizedBox(
@@ -202,6 +199,24 @@ class PlayerBar extends ConsumerWidget {
             IconButton(tooltip: 'Очередь', onPressed: onToggleQueue, icon: const Icon(Icons.queue_music_rounded, color: VybeColors.textMuted)),
         ],
       ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Lit top edge, brightest above the transport controls.
+        Container(
+          height: 1,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              Colors.white.withValues(alpha: 0.05),
+              VybeColors.accentLight.withValues(alpha: 0.55),
+              const Color(0xFFC07CFF).withValues(alpha: 0.3),
+              Colors.white.withValues(alpha: 0.05),
+            ], stops: const [0.15, 0.45, 0.6, 0.9]),
+          ),
+        ),
+        bar,
+      ],
     );
   }
 }
@@ -328,6 +343,7 @@ class NowPlayingPanel extends ConsumerWidget {
     final track = ref.watch(playerProvider.select((s) => s.current));
     final t = Theme.of(context).textTheme;
     return Panel(
+      accents: const GlassAccents(glowCorner: Alignment.topRight, rimStrength: 0.9, sheen: Alignment.topRight),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

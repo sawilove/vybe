@@ -52,7 +52,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     };
 
     final body = phone ? _phone() : _desktop(wide);
-    return CallbackShortcuts(bindings: shortcuts, child: Focus(autofocus: true, child: body));
+    return AmbientBackground(
+      child: CallbackShortcuts(bindings: shortcuts, child: Focus(autofocus: true, child: body)),
+    );
   }
 
   Widget _content({required bool phone}) {
@@ -76,6 +78,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget _desktop(bool wide) {
     final showPanel = wide && _queueOpen;
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Column(
         children: [
           Expanded(
@@ -129,8 +132,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         if (!didPop) ref.read(navProvider.notifier).pop();
       },
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: VybeColors.background,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           titleSpacing: 16,
           leading: nav.canPop ? null : null,
@@ -199,6 +203,7 @@ class _Sidebar extends ConsumerWidget {
     }
 
     return Panel(
+      accents: const GlassAccents(glowCorner: Alignment.bottomLeft, rimStrength: 0.9, wave: Alignment.bottomLeft),
       padding: const EdgeInsets.fromLTRB(12, 22, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
