@@ -102,23 +102,23 @@ abstract final class _G {
   static const width = maxX - minX, height = maxY - minY;
 }
 
-/// The VYBE mark: a folded glass ribbon forming a "V" (brand book, "Основная версия").
+/// The VYBE mark: a folded glass ribbon forming a "V" (brand book: primary version).
 class VybeMark extends StatelessWidget {
   const VybeMark({super.key, this.height = 32, this.monochrome = false});
 
   final double height;
 
-  /// Flat white version (brand book "Монохромная").
+  /// Flat white version (brand book: monochrome version).
   final bool monochrome;
 
   static const aspect = _G.width / _G.height;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: height * aspect,
-        height: height,
-        child: CustomPaint(painter: VybeMarkPainter(monochrome: monochrome)),
-      );
+    width: height * aspect,
+    height: height,
+    child: CustomPaint(painter: VybeMarkPainter(monochrome: monochrome)),
+  );
 }
 
 class VybeMarkPainter extends CustomPainter {
@@ -189,32 +189,47 @@ class VybeMarkPainter extends CustomPainter {
     // 1. Left ribbon, top face: light lavender at the outer end → deep violet by the notch.
     canvas.drawPath(
       union,
-      lin(const Offset(0.08, 0.1), const Offset(0.75, 0.42),
-          const [Color(0xFF905CF3), Color(0xFF7346D9), Color(0xFF4D33AE)], const [0.0, 0.5, 1.0]),
+      lin(
+        const Offset(0.08, 0.1),
+        const Offset(0.75, 0.42),
+        const [Color(0xFF905CF3), Color(0xFF7346D9), Color(0xFF4D33AE)],
+        const [0.0, 0.5, 1.0],
+      ),
     );
     _radial(canvas, left, const Offset(0.12, 0.1), 0.28, const Color(0xFFD9C8FF), 0.16);
 
     // 2. Left ribbon, underside: indigo, lighter by the outer edge, darkest towards the base.
     canvas.drawPath(
       leftUnder,
-      lin(const Offset(0.2, 0.5), const Offset(0.55, 0.85),
-          const [Color(0xFF45329F), Color(0xFF332684), Color(0xFF1F1652)], const [0.0, 0.35, 1.0]),
+      lin(
+        const Offset(0.2, 0.5),
+        const Offset(0.55, 0.85),
+        const [Color(0xFF45329F), Color(0xFF332684), Color(0xFF1F1652)],
+        const [0.0, 0.35, 1.0],
+      ),
     );
 
     // 3. Glass ribbon, inner face: dark navy by the notch, lighting up towards its outer end.
     canvas.drawPath(
       rightInner,
-      lin(const Offset(0.9, 0.3), const Offset(1.48, 0.28),
-          const [Color(0xFF2E1985), Color(0xFF3A1E9C), Color(0xFF6A34E2), Color(0xFF8A4CF5)],
-          const [0.0, 0.4, 0.8, 1.0]),
+      lin(
+        const Offset(0.9, 0.3),
+        const Offset(1.48, 0.28),
+        const [Color(0xFF2E1985), Color(0xFF3A1E9C), Color(0xFF6A34E2), Color(0xFF8A4CF5)],
+        const [0.0, 0.4, 0.8, 1.0],
+      ),
     );
     _radial(canvas, rightInner, const Offset(1.27, 0.44), 0.16, const Color(0xFF6A35E0), 0.6);
 
     // 4. Glass ribbon, front face: violet, brighter to the right and towards the base.
     canvas.drawPath(
       front,
-      lin(const Offset(0.6, 0.6), const Offset(1.2, 0.85),
-          const [Color(0xFF6A3BDF), Color(0xFF6335D7), Color(0xFF8550F3)], const [0.0, 0.4, 1.0]),
+      lin(
+        const Offset(0.6, 0.6),
+        const Offset(1.2, 0.85),
+        const [Color(0xFF6A3BDF), Color(0xFF6335D7), Color(0xFF8550F3)],
+        const [0.0, 0.4, 1.0],
+      ),
     );
     _radial(canvas, front, const Offset(0.66, 1.0), 0.24, const Color(0xFFB79CFF), 0.38);
     canvas.drawPath(band, Paint()..color = const Color(0xFFB89CFF).withValues(alpha: 0.2));
@@ -278,8 +293,12 @@ class VybeMarkPainter extends CustomPainter {
       center,
       radius,
       Paint()
-        ..shader = RadialGradient(colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)])
-            .createShader(Rect.fromCircle(center: center, radius: radius)),
+        ..shader = RadialGradient(
+          colors: [
+            color.withValues(alpha: alpha),
+            color.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: radius)),
     );
     c.restore();
   }
@@ -371,7 +390,7 @@ class VybeLogo extends StatelessWidget {
   }
 }
 
-/// App icon: the mark on a dark glass tile with a lit top edge (brand book "Основная версия").
+/// App icon: the mark on a dark glass tile with a lit top edge (brand book: primary version).
 class VybeAppIcon extends StatelessWidget {
   const VybeAppIcon({super.key, this.size = 1024, this.rounded = true});
 

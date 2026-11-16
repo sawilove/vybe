@@ -7,6 +7,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../sources/source_registry.dart';
 import '../navigation.dart';
+import '../../l10n/l10n.dart';
 import '../widgets/common.dart';
 import '../widgets/track_tile.dart';
 
@@ -37,62 +38,100 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.showField) ...[
-          const SearchField(autofocus: true),
-          const SizedBox(height: 14),
-        ],
-        Wrap(spacing: 8, children: [
-          _chip('Все', null),
-          for (final k in SourceKind.values) _chip(k.label, k),
-        ]),
-        const SizedBox(height: 12),
+        if (widget.showField) ...[const SearchField(autofocus: true), const SizedBox(height: 14)],
         Expanded(
           child: query.trim().isEmpty
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.manage_search_rounded,
-                  title: 'Напишите название трека или артиста',
-                  subtitle: 'Например: «Hozier Too Sweet» — VYBE поищет сразу во всех источниках',
+                  title: context.l10n.searchPrompt,
+                  subtitle: context.l10n.searchExample,
                 )
-              : ref.watch(searchResultsProvider(query)).when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => EmptyState(icon: Icons.error_outline_rounded, title: 'Ошибка поиска', subtitle: '$e'),
-                    data: (r) {
-                      final list = _filter == null ? r.all : (r.bySource[_filter] ?? const []);
-                      if (list.isEmpty) {
-                        final yErr = r.errors[SourceKind.youtube];
-                        return EmptyState(
-                          icon: Icons.search_off_rounded,
-                          title: 'Ничего не нашли по «$query»',
-                          subtitle: yErr != null ? 'YouTube недоступен: $yErr' : 'Попробуйте написать иначе',
+              : ref
+                    .watch(searchResultsProvider(query))
+                    .when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => EmptyState(
+                        icon: Icons.error_outline_rounded,
+                        title: context.l10n.searchError,
+                        subtitle: '$e',
+                      ),
+                      data: (r) {
+                        final l = context.l10n;
+                        final withHits = [
+                          for (final k in SourceKind.values)
+                            if (r.bySource[k]?.isNotEmpty ?? false) k,
+                        ];
+                        final filter = withHits.contains(_filter) ? _filter : null;
+                        final list = filter == null ? r.all : r.bySource[filter]!;
+                        final failed = [
+                          for (final e in r.errors.entries) l.sourceUnavailable(e.key.label, _short(e.value)),
+                        ];
+                        final muted = t.bodySmall?.copyWith(color: VybeColors.textMuted);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Filter by source; only sources that found something.
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _chip('${l.searchAll} ${r.all.length}', null, filter),
+                                for (final k in withHits)
+                                  _chip(
+                                    '${k == SourceKind.local ? l.local : k.label} ${r.bySource[k]!.length}',
+                                    k,
+                                    filter,
+                                  ),
+                              ],
+                            ),
+                            if (failed.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8, left: 4),
+                                child: Text(
+                                  failed.join(' · '),
+                                  style: muted,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            const SizedBox(height: 10),
+                            Expanded(
+                              child: list.isEmpty
+                                  ? EmptyState(
+                                      icon: Icons.search_off_rounded,
+                                      title: l.nothingFound(query),
+                                      subtitle: l.tryDifferent,
+                                    )
+                                  : ListView.builder(
+                                      itemCount: list.length,
+                                      // Tapping a result plays just that track; radio continues it.
+                                      itemBuilder: (_, i) => TrackTile(track: list[i]),
+                                    ),
+                            ),
+                          ],
                         );
-                      }
-                      return ListView.builder(
-                        itemCount: list.length + 1,
-                        itemBuilder: (_, i) => i == 0
-                            ? Padding(
-                                padding: const EdgeInsets.only(left: 10, bottom: 6),
-                                child: Text('Найдено: ${list.length}', style: t.bodySmall?.copyWith(color: VybeColors.textMuted)),
-                              )
-                            // Tapping a result plays just that track; radio continues it.
-                            : TrackTile(track: list[i - 1]),
-                      );
-                    },
-                  ),
+                      },
+                    ),
         ),
       ],
     );
   }
 
-  Widget _chip(String label, SourceKind? kind) => ChoiceChip(
-        label: Text(label),
-        selected: _filter == kind,
-        onSelected: (_) => setState(() => _filter = kind),
-        selectedColor: VybeColors.accent,
-        backgroundColor: VybeColors.surface,
-        side: const BorderSide(color: VybeColors.border),
-        shape: const StadiumBorder(),
-        showCheckmark: false,
-      );
+  static String _short(Object e) {
+    final text = '$e'.split('\n').first;
+    return text.length > 60 ? '${text.substring(0, 60)}…' : text;
+  }
+
+  Widget _chip(String label, SourceKind? kind, SourceKind? selected) => ChoiceChip(
+    label: Text(label),
+    selected: selected == kind,
+    onSelected: (_) => setState(() => _filter = kind),
+    selectedColor: VybeColors.accent,
+    backgroundColor: VybeColors.surface,
+    side: const BorderSide(color: VybeColors.border),
+    shape: const StadiumBorder(),
+    showCheckmark: false,
+  );
 }
 
 /// Debounced search field bound to [searchQueryProvider].
@@ -149,7 +188,7 @@ class _SearchFieldState extends ConsumerState<SearchField> {
       onChanged: _submit,
       onSubmitted: (v) => _submit(v, now: true),
       decoration: InputDecoration(
-        hintText: 'Артисты, треки, плейлисты…',
+        hintText: context.l10n.searchHint,
         prefixIcon: const Icon(Icons.search_rounded, color: VybeColors.textMuted),
         suffixIcon: ListenableBuilder(
           listenable: _controller,

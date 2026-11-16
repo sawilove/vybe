@@ -1,0 +1,202 @@
+{
+  "@@locale": "en",
+  "navHome": "Home",
+  "navSearch": "Search",
+  "navLibrary": "Library",
+  "navLiked": "Liked",
+  "navSettings": "Settings",
+  "yourMixes": "Your mixes",
+  "madeForYou": "Made for you",
+  "recommended": "Recommended",
+  "trendingNow": "Trending now",
+  "refresh": "Refresh",
+  "nothingToRecommend": "Nothing to recommend yet",
+  "checkConnection": "Check your connection or search for a track",
+  "recommendationsFailed": "Couldn't load recommendations",
+  "retry": "Retry",
+  "recentlyPlayed": "Recently played",
+  "seeAll": "See all",
+  "back": "Back",
+  "forward": "Next",
+  "playMix": "Play mix",
+  "play": "Play",
+  "shuffle": "Shuffle",
+  "likedTitle": "Liked songs",
+  "likedEmpty": "Your liked songs will appear here",
+  "likedEmptyHint": "Tap ♥ on any track. Likes make recommendations better.",
+  "myFiles": "My files",
+  "history": "History",
+  "add": "Add",
+  "addMusicTitle": "Add music from your device",
+  "addMusicHint": "MP3, M4A, FLAC, OGG, OPUS, WAV. The title comes from the file name \"Artist - Title\".",
+  "chooseFiles": "Choose files",
+  "removeFromLibrary": "Remove from library",
+  "clear": "Clear",
+  "historyEmpty": "You haven't listened to anything yet",
+  "mixFailed": "Couldn't build the mix",
+  "error": "Error",
+  "profile": "Profile",
+  "yourName": "What should we call you?",
+  "playback": "Playback",
+  "autoRadio": "Auto radio",
+  "autoRadioHint": "When the queue ends, VYBE keeps playing similar tracks",
+  "recsHint": "Recommendations are computed on this device from your history and likes. A free Last.fm API key makes them better.",
+  "lastFmKey": "Last.fm API key (optional)",
+  "about": "About",
+  "aboutText": "VYBE is an open-source music streaming client (MIT). All your data stays on this device.",
+  "searchAll": "All",
+  "searchPrompt": "Type a track or artist name",
+  "searchExample": "For example \"Hozier Too Sweet\": VYBE searches every source at once",
+  "searchError": "Search failed",
+  "tryDifferent": "Try different words",
+  "searchHint": "Artists, tracks, playlists…",
+  "more": "More",
+  "willPlayNext": "Playing next",
+  "addedToQueue": "Added to queue",
+  "playNext": "Play next",
+  "addToQueue": "Add to queue",
+  "unlike": "Remove from liked",
+  "like": "Add to liked",
+  "trackRadio": "Track radio",
+  "previous": "Previous",
+  "next": "Next",
+  "repeatOff": "Repeat off",
+  "repeatAll": "Repeat queue",
+  "repeatOne": "Repeat track",
+  "unmute": "Unmute",
+  "mute": "Mute",
+  "nothingPlaying": "Nothing playing",
+  "queue": "Queue",
+  "queueEmpty": "Queue is empty",
+  "findingSimilar": "Finding similar tracks…",
+  "removeFromQueue": "Remove from queue",
+  "findInSearch": "Find a track in search",
+  "nowPlaying": "Now playing",
+  "upNext": "Up next",
+  "downloads": "Downloads",
+  "download": "Download",
+  "removeDownload": "Remove download",
+  "downloading": "Downloading…",
+  "downloaded": "Downloaded",
+  "downloadsEmpty": "No downloads yet",
+  "downloadsHint": "Download tracks from the ⋮ menu, or like them with auto-download on",
+  "offline": "Offline",
+  "autoDownloadLiked": "Auto-download liked tracks",
+  "autoDownloadHint": "Liked tracks are saved for listening without internet",
+  "clearDownloads": "Delete all downloads",
+  "sources": "Sources",
+  "sourcesHint": "Every enabled source takes part in search. Credentials stay on this device.",
+  "needsSetup": "Needs setup",
+  "ready": "Ready",
+  "yandexToken": "Yandex Music token",
+  "yandexHint": "Search works without a token where Yandex Music is available. Playback needs your token; full tracks need Yandex Plus.",
+  "vkToken": "VK access token",
+  "vkUserAgent": "User-Agent of the token's app (optional)",
+  "vkHint": "VK music only works with a token issued for an official VK client.",
+  "soundcloudClientId": "SoundCloud client ID",
+  "soundcloudHint": "SoundCloud needs a client ID to search and play.",
+  "howToGet": "How to get it",
+  "language": "Language",
+  "languageSystem": "System",
+  "local": "My files",
+  "trackCount": "{count, plural, one{{count} track} other{{count} tracks}}",
+  "@trackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filesAdded": "{count, plural, one{Added {count} file} other{Added {count} files}}",
+  "@filesAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailed": "Couldn't import: {error}",
+  "@importFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingFound": "Nothing found for \"{query}\"",
+  "@nothingFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceUnavailable": "{source} is unavailable: {error}",
+  "@sourceUnavailable": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "playbackFailed": "Couldn't play {track}",
+  "@playbackFailed": {
+    "placeholders": {
+      "track": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "Download failed: {error}",
+  "@downloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "storageUsed": "Used: {size}",
+  "@storageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "greeting": "{part, select, morning{Good morning} afternoon{Good afternoon} evening{Good evening} other{Good night}}",
+  "@greeting": {
+    "placeholders": {
+      "part": {
+        "type": "String"
+      }
+    }
+  },
+  "mixSubtitle": "{id, select, chill{Based on your listening} gaming{For your gaming session} late{For your mood} workout{For your workout} other{}}",
+  "@mixSubtitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "heroTitle": "{id, select, workout{Louder!} other{}}",
+  "@heroTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "heroSubtitle": "{id, select, home{Let's find something to vibe with…} late{Quiet tracks for late hours} workout{Energy for workouts and drive} chill{Unwind: we picked a calm mix} other{}}",
+  "@heroSubtitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "searchOnly": "Search only"
+}

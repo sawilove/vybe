@@ -11,18 +11,21 @@ Track yt(String id, String artist, [String? title]) =>
 void main() {
   group('YouTubeSource.parseTitle', () {
     test('splits "Artist - Title" and strips noise', () {
-      expect(
-        YouTubeSource.parseTitle('Teddy Swims - Lose Control (Official Music Video)', 'TeddySwimsVEVO'),
-        ('Teddy Swims', 'Lose Control'),
-      );
-      expect(
-        YouTubeSource.parseTitle('Hozier – Too Sweet [Official Audio] | New 2024', 'Hozier'),
-        ('Hozier', 'Too Sweet'),
-      );
+      expect(YouTubeSource.parseTitle('Teddy Swims - Lose Control (Official Music Video)', 'TeddySwimsVEVO'), (
+        'Teddy Swims',
+        'Lose Control',
+      ));
+      expect(YouTubeSource.parseTitle('Hozier – Too Sweet [Official Audio] | New 2024', 'Hozier'), (
+        'Hozier',
+        'Too Sweet',
+      ));
     });
 
     test('falls back to channel name without " - Topic" / VEVO', () {
-      expect(YouTubeSource.parseTitle('Beautiful Things', 'Benson Boone - Topic'), ('Benson Boone', 'Beautiful Things'));
+      expect(YouTubeSource.parseTitle('Beautiful Things', 'Benson Boone - Topic'), (
+        'Benson Boone',
+        'Beautiful Things',
+      ));
       expect(YouTubeSource.parseTitle('Lose Control (Lyrics)', 'TeddySwimsVEVO'), ('TeddySwims', 'Lose Control'));
     });
   });
@@ -36,7 +39,13 @@ void main() {
   });
 
   test('Track JSON round-trip, including lazy tracks', () {
-    const lazy = Track(id: '', title: 'Too Sweet', artist: 'Hozier', source: SourceKind.youtube, query: 'Hozier - Too Sweet');
+    const lazy = Track(
+      id: '',
+      title: 'Too Sweet',
+      artist: 'Hozier',
+      source: SourceKind.youtube,
+      query: 'Hozier - Too Sweet',
+    );
     final full = yt('abc', 'Hozier').copyWith(duration: const Duration(seconds: 251), artworkUrl: 'https://x/y.jpg');
     for (final t in [lazy, full]) {
       final back = Track.fromJson(t.toJson());
@@ -60,7 +69,15 @@ void main() {
 
     test('drops excluded (recently played) tracks', () {
       final a = yt('a', 'A'), b = yt('b', 'B');
-      expect(RecommendationService.rank([[a, b]], exclude: {a.key}), [b]);
+      expect(
+        RecommendationService.rank(
+          [
+            [a, b],
+          ],
+          exclude: {a.key},
+        ),
+        [b],
+      );
     });
 
     test('caps tracks per artist and avoids the same artist twice in a row', () {
@@ -73,7 +90,13 @@ void main() {
     });
 
     test('merges a lazy Last.fm track with the concrete YouTube one', () {
-      const lazy = Track(id: '', title: 'Too Sweet', artist: 'Hozier', source: SourceKind.youtube, query: 'Hozier - Too Sweet');
+      const lazy = Track(
+        id: '',
+        title: 'Too Sweet',
+        artist: 'Hozier',
+        source: SourceKind.youtube,
+        query: 'Hozier - Too Sweet',
+      );
       final concrete = yt('vid', 'Hozier', 'Too Sweet');
       final ranked = RecommendationService.rank([
         [lazy],
@@ -82,6 +105,60 @@ void main() {
       expect(ranked, hasLength(1));
       expect(ranked.single.isLazy, isFalse);
     });
+  });
+
+  test('YouTube fallback parser keeps songs and skips unknown/long items', () {
+    final tracks = YouTubeSource.parseSearchResponse({
+      'contents': [
+        {
+          'someNewViewModel': {'x': 1},
+        },
+        {
+          'videoRenderer': {
+            'videoId': 'abc',
+            'title': {
+              'runs': [
+                {'text': 'Hozier - Too Sweet (Official Video)'},
+              ],
+            },
+            'ownerText': {
+              'runs': [
+                {'text': 'Hozier'},
+              ],
+            },
+            'lengthText': {'simpleText': '4:09'},
+          },
+        },
+        {
+          'shelf': [
+            {
+              'videoRenderer': {
+                'videoId': 'mix',
+                'title': {
+                  'runs': [
+                    {'text': 'Lofi mix'},
+                  ],
+                },
+                'lengthText': {'simpleText': '1:44:52'},
+              },
+            },
+          ],
+        },
+        {
+          'videoRenderer': {
+            'videoId': 'live',
+            'title': {
+              'runs': [
+                {'text': 'Radio'},
+              ],
+            },
+          },
+        },
+      ],
+    });
+    expect(tracks.map((t) => t.id), ['abc']);
+    expect(tracks.single.title, 'Too Sweet');
+    expect(tracks.single.artist, 'Hozier');
   });
 
   test('YouTubeSource.parseDuration', () {

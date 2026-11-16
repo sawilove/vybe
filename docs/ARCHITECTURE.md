@@ -1,141 +1,152 @@
-# VYBE — архитектура
+# Architecture
 
-> Your sound. Your freedom.
-> VYBE — лёгкий open-source клиент для стриминга музыки на Windows, macOS, Linux, Android и iOS.
+> VYBE is a lightweight open-source music streaming client for Windows, macOS, Linux, Android and iOS.
 
-## 1. Цели
+## 1. Goals
 
-| Цель | Как достигаем |
+| Goal | How |
 | --- | --- |
-| Одна кодовая база на 5 платформ | Flutter 3.50 (Dart 3.14) |
-| Лёгкость | Без своего бэкенда, без Electron/WebView. Плеер на нативных движках: ExoPlayer, AVPlayer, libmpv |
-| «Написал название — нашёл трек», как в музыкальных ботах Telegram | Глобальный поиск по всем подключённым источникам из одной строки |
-| Рекомендации без сервера | История прослушиваний хранится на устройстве. К ней добавляются «похожие» треки от источников и, по желанию, Last.fm |
-| Стильно и user friendly | Дизайн-система из брендбука: тёмная тема, фиолетовый акцент, Poppins. Адаптивный лейаут для десктопа и телефона |
+| One codebase, five platforms | Flutter 3.50 (Dart 3.14) |
+| Lightweight | No backend, no Electron/WebView. Native audio engines: ExoPlayer, AVPlayer, libmpv |
+| "Type the name, get the track", like Telegram music bots | One search box that queries every enabled source at once |
+| Recommendations without a server | Listening history stays on the device and is combined with "related" tracks from sources and, optionally, Last.fm |
+| Stylish and friendly | Design system from the brand book: dark theme, violet accent, Poppins, glass accents. Adaptive layouts for desktop and phone |
+| Works offline | Downloads are cached on the device; liked tracks are downloaded automatically |
+| English and Russian | `flutter gen-l10n` with ARB files; the repository itself is English-only |
 
-## 2. Слои
+## 2. Layers
 
 ```
 lib/
-├── main.dart                  # инициализация платформ и ProviderScope
-├── app.dart                   # MaterialApp + тема
+├── main.dart                  # platform init (libmpv, background audio) + ProviderScope
+├── app.dart                   # MaterialApp, theme, localization
 ├── core/
-│   ├── theme.dart             # дизайн-токены брендбука (цвета, радиусы, шрифт)
+│   ├── theme.dart             # brand book design tokens (colours, radii, fonts)
 │   ├── models.dart            # Track, SourceKind
-│   └── format.dart            # форматирование длительностей и т.п.
-├── sources/                   # ПОДКЛЮЧАЕМЫЕ ИСТОЧНИКИ МУЗЫКИ
-│   ├── music_source.dart      # интерфейс MusicSource
-│   ├── youtube_source.dart    # YouTube / YT Music (youtube_explode_dart)
-│   ├── local_source.dart      # локальные файлы
-│   └── source_registry.dart   # все источники + общий поиск
+│   ├── format.dart            # durations, part of day
+│   └── version.dart           # app version (kept in sync with pubspec.yaml)
+├── l10n/                      # app_en.arb, app_ru.arb (+ generated code)
+├── sources/                   # PLUGGABLE MUSIC SOURCES
+│   ├── music_source.dart      # MusicSource base class
+│   ├── youtube_source.dart    # YouTube / YT Music
+│   ├── yandex_source.dart     # Yandex Music (user token)
+│   ├── vk_source.dart         # VK (user token)
+│   ├── soundcloud_source.dart # SoundCloud (user client ID)
+│   ├── audius_source.dart     # Audius (open API)
+│   ├── local_source.dart      # files on the device
+│   └── source_registry.dart   # all sources + combined search
 ├── data/
-│   └── library_store.dart     # лайки, история, локальная медиатека, настройки (на устройстве)
+│   ├── library_store.dart     # likes, history, local files, settings (on device)
+│   └── download_manager.dart  # offline cache
 ├── player/
-│   └── player_controller.dart # очередь, shuffle/repeat, авто-радио (just_audio)
+│   └── player_controller.dart # queue, shuffle/repeat, auto radio (just_audio)
 ├── recommendations/
-│   ├── recommendation_service.dart  # «Made for You», радио, миксы
-│   └── lastfm_client.dart           # необязательно: похожие треки из Last.fm
+│   ├── recommendation_service.dart  # "Made for you", radio, mixes
+│   └── lastfm_client.dart           # optional: similar tracks from Last.fm
 └── ui/
-    ├── shell.dart             # адаптивный каркас: 3 колонки / 2 колонки / мобильный
-    ├── screens/               # Home, Search, Library, Settings, Now Playing
-    └── widgets/               # сайдбар, плеер-бар, очередь, карточки, строки треков
+    ├── shell.dart             # adaptive shell: 3 columns / 2 columns / phone
+    ├── screens/               # home, search, library, settings, mix
+    └── widgets/               # logo, glass accents, player, track rows
 ```
 
-### 2.1 Источники (`MusicSource`)
-
-Каждый источник реализует четыре операции:
+### 2.1 Sources (`MusicSource`)
 
 ```dart
-abstract interface class MusicSource {
+abstract class MusicSource {
   SourceKind get kind;
-  Future<List<Track>> search(String query);   // поиск по названию
-  Future<Uri> resolveStream(Track track);     // прямой URL или файл для плеера
-  Future<List<Track>> related(Track track);   // «похожие» для радио и рекомендаций
+  bool get isConfigured;                          // false → skipped by search
+  Future<List<Track>> search(String query);       // free-text search
+  Future<ResolvedStream> resolveStream(Track t);  // URL or file for the player
+  Future<List<Track>> related(Track t);           // for radio and recommendations
+  Future<DownloadResult> download(Track t, String basePath); // offline cache
 }
 ```
 
-Новый источник (SoundCloud, Jamendo, Audius, Navidrome/Subsonic и т.д.) добавляется одним классом
-и регистрацией в `SourceRegistry`. UI и плеер при этом не меняются.
+A new source is one class plus one line in `SourceRegistry`; the UI and player don't change.
+Search runs every **enabled and configured** source in parallel; a failing source never breaks
+search, it is shown as "unavailable" next to the results. See [SOURCES.md](SOURCES.md) for each
+source and how to connect your accounts.
 
-Ленивые треки. Трек может прийти из рекомендаций Last.fm, то есть быть только метаданными «артист — название».
-Такой трек получает `query` и пустой `id`. При воспроизведении YouTube-источник сам находит лучший
-совпадающий ролик. Так рекомендации из любого сервиса превращаются в воспроизводимые треки.
+**Lazy tracks.** A recommendation can be metadata only ("artist — title", e.g. from Last.fm).
+Such a track has an empty `id` and a `query`; the source finds the best match right before playing.
 
-### 2.2 Плеер
+### 2.2 Player
 
-- `just_audio`: ExoPlayer на Android, AVPlayer на iOS/macOS.
-  `just_audio_media_kit` + libmpv на Windows/Linux.
-- Очередь хранится в `PlayerController`. Ссылку на поток получаем только перед воспроизведением,
-  потому что ссылки YouTube живут ограниченное время.
-- **Авто-радио:** когда очередь заканчивается, плеер добавляет похожие треки, как в YT Music.
+- `just_audio`: ExoPlayer on Android, AVPlayer on iOS/macOS, `just_audio_media_kit` + libmpv on Windows/Linux.
+- Background playback and lock screen controls on Android/iOS/macOS via `just_audio_background`.
+- The queue lives in `PlayerController`. Stream URLs are resolved right before playing because
+  YouTube links expire. Downloaded tracks play from disk.
+- **Auto radio:** when the queue ends, similar tracks are appended, like YT Music.
 
-### 2.3 Рекомендации (без сервера)
+### 2.3 Offline cache
 
-1. **Сигналы**: история прослушиваний (что, когда, дослушано ли) и лайки. Всё хранится на устройстве.
-2. **Сиды**: последние и самые частые треки и артисты.
-3. **Кандидаты**: `related()` от источников по каждому сиду и, если пользователь указал API-ключ,
-   `track.getSimilar` из Last.fm.
-4. **Ранжирование**: треки, найденные от нескольких сидов, поднимаются выше. Недавно прослушанные
-   отфильтровываются. Подряд не ставятся несколько треков одного артиста.
-5. **Миксы на главной** (Chill Vibes, Gaming Mix, Late Night, Workout): настроение и топ-артисты
-   пользователя превращаются в поисковые запросы.
+`DownloadManager` downloads one track at a time into the app support directory and keeps an
+index in `SharedPreferences`. Liked tracks are queued automatically when
+*Settings → Offline → Auto-download liked tracks* is on (default). The player always prefers the
+offline copy.
 
-Позже можно добавить ListenBrainz (open-source scrobbling) как ещё один источник кандидатов.
+### 2.4 Recommendations (no server)
 
-## 3. Платформы и дистрибуция
+1. **Signals:** listening history and likes, stored on the device.
+2. **Seeds:** recent and frequent tracks and artists.
+3. **Candidates:** `related()` from sources for every seed, plus Last.fm `track.getSimilar` when
+   the user added an API key.
+4. **Ranking:** tracks suggested by several seeds rank higher, recently played ones are dropped,
+   and the same artist never plays twice in a row.
+5. **Mood mixes** (Chill Vibes, Gaming Mix, Late Night, Workout): mood keywords combined with the
+   user's top artists.
 
-| Платформа | Аудио-движок | Дистрибуция |
+## 3. Platforms and distribution
+
+VYBE is distributed through **GitHub Releases** only (see [RELEASING.md](RELEASING.md)).
+
+| Platform | Audio engine | Release artifact |
 | --- | --- | --- |
-| Android | ExoPlayer | GitHub Releases (APK), F-Droid / IzzyOnDroid |
-| iOS | AVPlayer | Сайдлоад (AltStore / SideStore), TestFlight для сборок без YouTube |
-| Windows | libmpv | GitHub Releases (zip / MSIX), winget |
-| macOS | AVPlayer | GitHub Releases (dmg), Homebrew cask |
-| Linux | libmpv | Flatpak (Flathub), AppImage |
+| Android | ExoPlayer | APK |
+| iOS | AVPlayer | Unsigned IPA (sideload with AltStore / SideStore) |
+| Windows | libmpv | zip |
+| macOS | AVPlayer | zip with the .app (unsigned) |
+| Linux | libmpv | tar.gz |
 
-### ⚠️ Про YouTube
+### About YouTube, VK and Yandex Music
 
-Воспроизведение YouTube в стороннем клиенте нарушает Условия использования YouTube. Так же работают
-NewPipe, ViMusic и InnerTune. Что из этого следует:
+Playing YouTube in a third-party client is against YouTube's Terms of Service; NewPipe, ViMusic
+and InnerTune work the same way. VK and Yandex Music are used through unofficial APIs with the
+user's **own** account. Consequences:
 
-- **App Store и Google Play** с высокой вероятностью отклонят или удалят приложение с YouTube-источником.
-  Поэтому основной канал: GitHub Releases, F-Droid, Flathub и сайдлоад на iOS.
-- YouTube может в любой момент поменять внутренний API. Тогда нужно обновить зависимость
-  `youtube_explode_dart`. Источник изолирован в `youtube_source.dart`, так что поломка не задевает
-  остальное приложение.
-- Если понадобится версия для магазинов, её можно собрать без YouTube-источника: только локальные файлы,
-  свой сервер (Subsonic) и легальные каталоги (Jamendo, Audius).
+- App stores would reject such an app, so VYBE ships through GitHub Releases.
+- Those services can change their private APIs at any time. Every source is isolated in its own
+  file, so a breakage never takes the rest of the app down.
+- VYBE never ships anyone's credentials and never asks for passwords: users paste tokens they
+  obtained themselves (see [SOURCES.md](SOURCES.md)). It does not use piracy sites.
 
-VYBE не подключает пиратские MP3-сайты и «серые» каталоги, которыми пользуются некоторые музыкальные боты.
+## 4. Design system
 
-## 4. Дизайн-система
+Tokens from the brand book live in `lib/core/theme.dart`:
 
-Токены перенесены из брендбука в `lib/core/theme.dart`:
-
-| Токен | Значение |
+| Token | Value |
 | --- | --- |
 | Accent | `#8B5CF6` |
 | Accent Light | `#B7A0FF` |
 | Surface | `#171722` |
 | Surface 2 | `#20202D` |
 | Text | `#F4F4F5` |
-| Шрифт | Poppins. В Poppins нет кириллицы, поэтому для неё подключён Montserrat |
+| Font | Poppins (Montserrat as the Cyrillic fallback: Poppins has no Cyrillic) |
 
-Логотип (`lib/ui/widgets/logo.dart`) воспроизводит знак из брендбука. Его контур трассирован из PNG брендбука
-(marching squares по маске в 8× разрешении, 70 точек, сплайн Катмулла — Рома с острым углом в вырезе V).
-Линии сгиба сняты с карты границ, цвета зон — пипеткой с оригинала. Иконки приложения рендерятся из логотипа:
-`flutter test tool/render_icons_test.dart --update-goldens`, затем `dart run flutter_launcher_icons`.
+**Logo** (`lib/ui/widgets/logo.dart`) reproduces the brand book mark. Its outline was traced from
+the brand book PNG (marching squares on an 8× mask, 70 points, Catmull-Rom spline with a sharp
+corner at the V's notch); the fold lines come from an edge map and the colours were sampled from
+the original. App icons are rendered from it:
+`flutter test tool/render_icons_test.dart --update-goldens`, then `dart run flutter_launcher_icons`.
 
-Стеклянные акценты (`lib/ui/widgets/glass.dart`) взяты из брендбука и концепта:
-- переливающаяся рамка 1 px: лавандовая с пурпурным отливом в выбранном углу, гаснет к противоположному;
-- мягкое фиолетовое свечение в том же углу;
-- стеклянный блик (полупрозрачный «лист» со светящейся кромкой) и волна в нижнем углу;
-- фоновое свечение в противоположных углах окна.
+**Glass accents** (`lib/ui/widgets/glass.dart`): a 1 px iridescent rim that lights up at one corner,
+a soft corner glow, a glass sheen with a glowing edge, bottom-corner waves and an ambient window glow.
 
-Фото для баннера на главной лежат в `assets/banners/`. Это изображения CC0 из Openverse,
-уменьшенные и тонированные в палитру (~60 КБ на кадр).
+**Banner photos** (`assets/banners/`) are CC0 images from Openverse, resized and tinted into the
+palette (~60 KB each). Credits: [assets/banners/CREDITS.md](../assets/banners/CREDITS.md).
 
-Адаптивность:
+**Layouts:**
 
-- **≥ 1200 px**: сайдбар, контент, панель «Сейчас играет» с очередью и плеер-бар снизу (как в концепте).
-- **720–1200 px**: сайдбар, контент и плеер-бар.
-- **< 720 px** (телефон): контент, мини-плеер и нижняя навигация. Полноэкранный плеер открывается по тапу.
+- **≥ 1200 px:** sidebar, content, "Now playing" panel with the queue, player bar.
+- **720–1200 px:** sidebar, content, player bar.
+- **< 720 px (phone):** content, mini player and bottom navigation; full-screen player on tap.

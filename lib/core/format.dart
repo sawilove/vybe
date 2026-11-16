@@ -6,10 +6,11 @@ String formatDuration(Duration? d) {
   return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
 }
 
-String greetingFor(DateTime now) {
+/// Part of the day for the greeting: morning / afternoon / evening / night.
+String partOfDay(DateTime now) {
   final h = now.hour;
-  if (h >= 5 && h < 12) return 'Доброе утро';
-  if (h >= 12 && h < 18) return 'Добрый день';
-  if (h >= 18 && h < 23) return 'Добрый вечер';
-  return 'Доброй ночи';
+  if (h >= 5 && h < 12) return 'morning';
+  if (h >= 12 && h < 18) return 'afternoon';
+  if (h >= 18 && h < 23) return 'evening';
+  return 'night';
 }

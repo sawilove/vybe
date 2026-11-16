@@ -8,18 +8,10 @@ import 'lastfm_client.dart';
 
 /// A "Made for You" mood mix shown on Home.
 class Mix {
-  const Mix({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.query,
-    required this.icon,
-    required this.colors,
-  });
+  const Mix({required this.id, required this.title, required this.query, required this.icon, required this.colors});
 
   final String id;
   final String title;
-  final String subtitle;
   final String query;
   final IconData icon;
   final List<Color> colors;
@@ -29,7 +21,6 @@ const mixes = [
   Mix(
     id: 'chill',
     title: 'Chill Vibes',
-    subtitle: 'По вашим прослушиваниям',
     query: 'chill vibes songs',
     icon: Icons.nights_stay_rounded,
     colors: [Color(0xFF3B2A7A), Color(0xFFDB5C9A)],
@@ -37,7 +28,6 @@ const mixes = [
   Mix(
     id: 'gaming',
     title: 'Gaming Mix',
-    subtitle: 'Для игровой сессии',
     query: 'gaming music mix songs',
     icon: Icons.sports_esports_rounded,
     colors: [Color(0xFF1F1B4D), Color(0xFF6D3BF5)],
@@ -45,7 +35,6 @@ const mixes = [
   Mix(
     id: 'late',
     title: 'Late Night',
-    subtitle: 'Под настроение',
     query: 'late night songs',
     icon: Icons.bedtime_rounded,
     colors: [Color(0xFF16163A), Color(0xFF5B4BB7)],
@@ -53,7 +42,6 @@ const mixes = [
   Mix(
     id: 'workout',
     title: 'Workout',
-    subtitle: 'Для тренировки',
     query: 'workout motivation songs',
     icon: Icons.fitness_center_rounded,
     colors: [Color(0xFF2B1638), Color(0xFFE0533D)],
@@ -72,10 +60,7 @@ class RecommendationService {
 
   /// "Made for You": related tracks of recent and liked tracks, ranked.
   Future<List<Track>> forYou({int limit = 30}) async {
-    final seeds = <Track>{
-      ..._library.recentlyPlayed.take(4),
-      ..._library.liked.take(2),
-    }.toList();
+    final seeds = <Track>{..._library.recentlyPlayed.take(4), ..._library.liked.take(2)}.toList();
     if (seeds.isEmpty) return discover();
 
     final candidates = await Future.wait(seeds.map(_similarSafe));
@@ -92,17 +77,16 @@ class RecommendationService {
   /// A mood mix, personalised with the user's top artist when there is one.
   Future<List<Track>> mix(Mix mix) async {
     final top = _library.topArtists(limit: 2);
-    final queries = [
-      mix.query,
-      for (final a in top) '${mix.query} like $a',
-    ];
-    final lists = await Future.wait(queries.map((q) async {
-      try {
-        return await _registry.of(SourceKind.youtube).search(q);
-      } catch (_) {
-        return <Track>[];
-      }
-    }));
+    final queries = [mix.query, for (final a in top) '${mix.query} like $a'];
+    final lists = await Future.wait(
+      queries.map((q) async {
+        try {
+          return await _registry.of(SourceKind.youtube).search(q);
+        } catch (_) {
+          return <Track>[];
+        }
+      }),
+    );
     return rank(lists, limit: 25);
   }
 
@@ -110,13 +94,15 @@ class RecommendationService {
   Future<List<Track>> discover() async {
     final year = DateTime.now().year;
     final yt = _registry.of(SourceKind.youtube);
-    final lists = await Future.wait(['top songs $year', 'new music $year official audio', 'хиты $year'].map((q) async {
-      try {
-        return await yt.search(q);
-      } catch (_) {
-        return <Track>[];
-      }
-    }));
+    final lists = await Future.wait(
+      ['top songs $year', 'new music $year official audio', 'top 50 $year'].map((q) async {
+        try {
+          return await yt.search(q);
+        } catch (_) {
+          return <Track>[];
+        }
+      }),
+    );
     return rank(lists, limit: 20);
   }
 
@@ -204,9 +190,7 @@ final recommendationServiceProvider = Provider<RecommendationService>((ref) {
 
 /// Recomputed when the user opens Home or explicitly refreshes it, not on
 /// every play (that would hammer YouTube).
-final forYouProvider = FutureProvider<List<Track>>(
-  (ref) => ref.watch(recommendationServiceProvider).forYou(),
-);
+final forYouProvider = FutureProvider<List<Track>>((ref) => ref.watch(recommendationServiceProvider).forYou());
 
 final mixProvider = FutureProvider.family<List<Track>, String>((ref, id) {
   final mix = mixes.firstWhere((m) => m.id == id);

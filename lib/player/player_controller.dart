@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import '../core/models.dart';
+import '../data/download_manager.dart';
 import '../data/library_store.dart';
 import '../recommendations/recommendation_service.dart';
+import '../sources/music_source.dart';
 import '../sources/source_registry.dart';
 
 enum RepeatPolicy { off, all, one }
@@ -51,18 +55,17 @@ class PlayerSnapshot {
     String? error,
     bool clearError = false,
     bool? radioLoading,
-  }) =>
-      PlayerSnapshot(
-        queue: queue ?? this.queue,
-        index: index ?? this.index,
-        playing: playing ?? this.playing,
-        loading: loading ?? this.loading,
-        shuffle: shuffle ?? this.shuffle,
-        repeat: repeat ?? this.repeat,
-        volume: volume ?? this.volume,
-        error: clearError ? null : (error ?? this.error),
-        radioLoading: radioLoading ?? this.radioLoading,
-      );
+  }) => PlayerSnapshot(
+    queue: queue ?? this.queue,
+    index: index ?? this.index,
+    playing: playing ?? this.playing,
+    loading: loading ?? this.loading,
+    shuffle: shuffle ?? this.shuffle,
+    repeat: repeat ?? this.repeat,
+    volume: volume ?? this.volume,
+    error: clearError ? null : (error ?? this.error),
+    radioLoading: radioLoading ?? this.radioLoading,
+  );
 }
 
 final audioPlayerProvider = Provider<AudioPlayer>((ref) {
@@ -71,13 +74,9 @@ final audioPlayerProvider = Provider<AudioPlayer>((ref) {
   return player;
 });
 
-final positionProvider = StreamProvider<Duration>(
-  (ref) => ref.watch(audioPlayerProvider).positionStream,
-);
+final positionProvider = StreamProvider<Duration>((ref) => ref.watch(audioPlayerProvider).positionStream);
 
-final durationProvider = StreamProvider<Duration?>(
-  (ref) => ref.watch(audioPlayerProvider).durationStream,
-);
+final durationProvider = StreamProvider<Duration?>((ref) => ref.watch(audioPlayerProvider).durationStream);
 
 /// Owns the queue and drives `just_audio`.
 ///
@@ -94,14 +93,16 @@ class PlayerController extends Notifier<PlayerSnapshot> {
   @override
   PlayerSnapshot build() {
     final player = ref.watch(audioPlayerProvider);
-    _subs.add(player.playerStateStream.listen((s) {
-      if (!ref.mounted) return;
-      if (s.processingState == ProcessingState.completed) {
-        _onCompleted();
-      } else if (s.playing != state.playing) {
-        state = state.copyWith(playing: s.playing);
-      }
-    }));
+    _subs.add(
+      player.playerStateStream.listen((s) {
+        if (!ref.mounted) return;
+        if (s.processingState == ProcessingState.completed) {
+          _onCompleted();
+        } else if (s.playing != state.playing) {
+          state = state.copyWith(playing: s.playing);
+        }
+      }),
+    );
     ref.onDispose(() {
       for (final s in _subs) {
         s.cancel();
@@ -210,7 +211,9 @@ class PlayerController extends Notifier<PlayerSnapshot> {
     }
     if (!state.shuffle) {
       _unshuffledQueue = state.queue;
-      final rest = [...state.queue]..removeAt(state.index)..shuffle();
+      final rest = [...state.queue]
+        ..removeAt(state.index)
+        ..shuffle();
       state = state.copyWith(queue: [current, ...rest], index: 0, shuffle: true);
     } else {
       final original = _unshuffledQueue ?? state.queue;
@@ -241,7 +244,11 @@ class PlayerController extends Notifier<PlayerSnapshot> {
     state = state.copyWith(loading: true, clearError: true);
     try {
       await _player.stop();
-      final resolved = await ref.read(sourceRegistryProvider).of(track.source).resolveStream(track);
+      // Offline copy first: no network, no expiring links.
+      final offline = ref.read(downloadsProvider).pathFor(track);
+      final resolved = offline != null && File(offline).existsSync()
+          ? ResolvedStream(Uri.file(offline), track: ref.read(downloadsProvider).tracks[track.key] ?? track)
+          : await ref.read(sourceRegistryProvider).of(track.source).resolveStream(track);
       if (token != _loadToken || !ref.mounted) return;
 
       // A lazy track (e.g. from Last.fm) becomes the concrete match.
@@ -253,7 +260,21 @@ class PlayerController extends Notifier<PlayerSnapshot> {
       unawaited(_maybeExtendWithRadio());
 
       await _player.setVolume(state.volume);
-      await _player.setAudioSource(AudioSource.uri(resolved.uri, headers: resolved.headers));
+      final t = resolved.track;
+      await _player.setAudioSource(
+        AudioSource.uri(
+          resolved.uri,
+          headers: resolved.headers,
+          // Shown on the lock screen / in the notification (just_audio_background).
+          tag: MediaItem(
+            id: t.key,
+            title: t.title,
+            artist: t.artist,
+            duration: t.duration,
+            artUri: t.artworkUrl == null ? null : Uri.tryParse(t.artworkUrl!),
+          ),
+        ),
+      );
       if (token != _loadToken || !ref.mounted) return;
       unawaited(_player.play());
       _consecutiveErrors = 0;
@@ -262,7 +283,7 @@ class PlayerController extends Notifier<PlayerSnapshot> {
     } catch (e) {
       if (token != _loadToken || !ref.mounted) return;
       debugPrint('Playback failed for $track: $e');
-      state = state.copyWith(loading: false, playing: false, error: 'Не удалось воспроизвести: $track');
+      state = state.copyWith(loading: false, playing: false, error: '$track');
       // Skip broken tracks, but don't loop forever if the network is down.
       if (++_consecutiveErrors < 3 && state.index < state.queue.length - 1) {
         await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -282,10 +303,9 @@ class PlayerController extends Notifier<PlayerSnapshot> {
 
     state = state.copyWith(radioLoading: true);
     try {
-      final more = await ref.read(recommendationServiceProvider).radio(
-            current,
-            exclude: state.queue.map((t) => t.key).toSet(),
-          );
+      final more = await ref
+          .read(recommendationServiceProvider)
+          .radio(current, exclude: state.queue.map((t) => t.key).toSet());
       if (!ref.mounted) return;
       state = state.copyWith(queue: [...state.queue, ...more], radioLoading: false);
     } catch (e) {

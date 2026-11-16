@@ -1,5 +1,6 @@
 package app.vybe.vybe
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// AudioServiceActivity keeps the Flutter engine alive for background playback.
+class MainActivity : AudioServiceActivity()

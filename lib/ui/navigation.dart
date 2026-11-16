@@ -1,17 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-enum AppTab {
-  home('Главная', Icons.home_rounded, Icons.home_outlined),
-  search('Поиск', Icons.search_rounded, Icons.search_rounded),
-  library('Медиатека', Icons.library_music_rounded, Icons.library_music_outlined),
-  liked('Любимые', Icons.favorite_rounded, Icons.favorite_border_rounded),
-  settings('Настройки', Icons.settings_rounded, Icons.settings_outlined);
+import '../l10n/l10n.dart';
 
-  const AppTab(this.label, this.icon, this.iconOutlined);
-  final String label;
+enum AppTab {
+  home(Icons.home_rounded, Icons.home_outlined),
+  search(Icons.search_rounded, Icons.search_rounded),
+  library(Icons.library_music_rounded, Icons.library_music_outlined),
+  liked(Icons.favorite_rounded, Icons.favorite_border_rounded),
+  settings(Icons.settings_rounded, Icons.settings_outlined);
+
+  const AppTab(this.icon, this.iconOutlined);
   final IconData icon;
   final IconData iconOutlined;
+
+  String label(AppLocalizations l) => switch (this) {
+    home => l.navHome,
+    search => l.navSearch,
+    library => l.navLibrary,
+    liked => l.navLiked,
+    settings => l.navSettings,
+  };
 }
 
 /// What the main content area shows: a tab, optionally with a detail page

@@ -1,46 +1,37 @@
-# VYBE — роадмап
+# Roadmap
 
-## v0.1 — MVP (этот коммит)
+## v0.1.0: first release
 
-- [x] Каркас Flutter-приложения под Android, iOS, Windows, macOS, Linux
-- [x] Дизайн-система из брендбука (цвета, Poppins + Montserrat для кириллицы, радиусы)
-- [x] Логотип, трассированный с брендбука (рисуется кодом), и иконки приложения для всех платформ
-- [x] Стеклянные акценты: переливающиеся рамки, свечение в углах, блики, волны
-- [x] Баннер-карусель с атмосферными фото (CC0, тонированы в палитру)
-- [x] Адаптивный UI: десктоп в 3 колонки, планшет, телефон
-- [x] Источник YouTube: поиск, получение аудиопотока, похожие треки
-- [x] Источник «Локальные файлы»: импорт файлов в медиатеку
-- [x] Глобальный поиск «написал название — нашёл трек»
-- [x] Плеер: очередь, next/prev, shuffle, repeat, громкость, перемотка
-- [x] Авто-радио после окончания очереди
-- [x] Лайки, история, рекомендации «Made for You» и миксы по настроению (на устройстве)
-- [x] Необязательная интеграция Last.fm (похожие треки)
+- [x] Flutter app for Android, iOS, Windows, macOS and Linux
+- [x] Brand book design system, traced logo, app icons, glass accents, photo banner
+- [x] Adaptive UI: desktop (3 columns), tablet, phone
+- [x] Sources: YouTube, Audius, Yandex Music, VK, SoundCloud, local files
+- [x] One search box for every source
+- [x] Player: queue, shuffle, repeat, volume, seeking, auto radio
+- [x] Background playback and lock screen controls (Android, iOS, macOS)
+- [x] Offline cache, auto-download of liked tracks
+- [x] On-device recommendations and mood mixes, optional Last.fm
+- [x] English and Russian
+- [x] CI and tag-based releases on GitHub
 
-## v0.2 — мобильный опыт
+## v0.2: mobile & library
 
-- [ ] Фоновое воспроизведение и управление с экрана блокировки и из шторки (`audio_service`)
-- [ ] Медиаклавиши и системный плеер на десктопе (SMTC / MPRIS / Now Playing)
-- [ ] Офлайн-кеш и загрузка треков
-- [ ] Чтение тегов (ID3/FLAC) и обложек у локальных файлов, сканирование папок
-- [ ] Шрифты встроены в сборку, работают без сети
-- [ ] Иконка окна на Linux / .desktop-файл
+- [ ] Next/previous buttons in the media notification (move the queue to `audio_service`)
+- [ ] Media keys and system media controls on desktop (SMTC / MPRIS)
+- [ ] Wi-Fi-only downloads, cache size limit
+- [ ] Read ID3/FLAC tags and covers of local files, scan folders
+- [ ] Bundle fonts so the first launch works offline
+- [ ] Linux window icon / .desktop file
 
-## v0.3 — библиотека и социальность
+## v0.3: playlists & social
 
-- [ ] Пользовательские плейлисты: создание, перетаскивание, импорт плейлистов YouTube
-- [ ] Тексты песен (LRCLIB, синхронизированные)
-- [ ] Скробблинг в Last.fm / ListenBrainz
-- [ ] Экспорт и импорт медиатеки (JSON), синхронизация через файл или WebDAV
+- [ ] Playlists: create, reorder, import from YouTube / Yandex / VK
+- [ ] Synced lyrics (LRCLIB)
+- [ ] Scrobbling to Last.fm / ListenBrainz
+- [ ] Export / import of the library, sync via a file or WebDAV
 
-## v0.4 — больше источников
+## v0.4: more sources
 
-- [ ] Свой сервер: Navidrome / Jellyfin (Subsonic API)
-- [ ] Jamendo, Audius, Internet Archive (легальные каталоги)
-- [ ] SoundCloud
-- [ ] Сборка «store edition» без YouTube для App Store / Google Play
-
-## Инфраструктура
-
-- [ ] CI (GitHub Actions): analyze, test, сборки под все платформы
-- [ ] Релизы: APK, AppImage/Flatpak, MSIX, dmg, IPA для сайдлоада
-- [ ] CONTRIBUTING.md, шаблоны issue и PR
+- [ ] Your own server: Navidrome / Jellyfin (Subsonic API)
+- [ ] Jamendo, Internet Archive
+- [ ] Open Spotify / Apple Music links (matched to a playable source)

@@ -4,7 +4,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import '../../data/download_manager.dart';
 import '../../data/library_store.dart';
+import '../../l10n/l10n.dart';
 import '../../player/player_controller.dart';
 import '../../recommendations/recommendation_service.dart';
 import '../../sources/local_source.dart';
@@ -13,8 +15,8 @@ import '../widgets/common.dart';
 import '../widgets/track_tile.dart';
 
 /// Header with title, count and "play all" / "shuffle".
-class _ListHeader extends ConsumerWidget {
-  const _ListHeader({required this.title, required this.tracks, this.subtitle, this.extra});
+class ListHeader extends ConsumerWidget {
+  const ListHeader({super.key, required this.title, required this.tracks, this.subtitle, this.extra});
 
   final String title;
   final String? subtitle;
@@ -37,16 +39,17 @@ class _ListHeader extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(title, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-              Text(subtitle ?? '${tracks.length} треков', style: t.bodyMedium?.copyWith(color: VybeColors.textMuted)),
+              Text(
+                subtitle ?? context.l10n.trackCount(tracks.length),
+                style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
+              ),
             ],
           ),
           const SizedBox(width: 12),
           PlayButton(playing: false, size: 46, onPressed: tracks.isEmpty ? null : () => player.playQueue(tracks)),
           IconButton(
-            tooltip: 'Перемешать',
-            onPressed: tracks.isEmpty
-                ? null
-                : () => player.playQueue([...tracks]..shuffle()),
+            tooltip: context.l10n.shuffle,
+            onPressed: tracks.isEmpty ? null : () => player.playQueue([...tracks]..shuffle()),
             icon: const Icon(Icons.shuffle_rounded),
           ),
           ?extra,
@@ -83,17 +86,14 @@ class LikedScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final liked = ref.watch(libraryProvider.select((s) => s.liked));
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ListHeader(title: 'Любимые треки', tracks: liked),
+        ListHeader(title: l.likedTitle, tracks: liked),
         Expanded(
           child: liked.isEmpty
-              ? const EmptyState(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'Здесь будут ваши любимые треки',
-                  subtitle: 'Нажмите ♥ у любого трека. Лайки помогают точнее подбирать рекомендации',
-                )
+              ? EmptyState(icon: Icons.favorite_border_rounded, title: l.likedEmpty, subtitle: l.likedEmptyHint)
               : _TrackList(tracks: liked),
         ),
       ],
@@ -101,6 +101,7 @@ class LikedScreen extends ConsumerWidget {
   }
 }
 
+/// Library: imported files, offline downloads and listening history.
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
@@ -109,7 +110,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 2, vsync: this);
+  late final _tabs = TabController(length: 3, vsync: this);
   bool _importing = false;
 
   @override
@@ -119,23 +120,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
   }
 
   Future<void> _import() async {
+    final l = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _importing = true);
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: LocalSource.audioExtensions,
-      );
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: LocalSource.audioExtensions);
       final paths = files.map((f) => f.path).whereType<String>();
       final tracks = <Track>[];
       for (final p in paths) {
         tracks.add(LocalSource.trackFromPath(await LocalSource.persistPickedFile(p)));
       }
       ref.read(libraryProvider.notifier).addLocalTracks(tracks);
-      if (mounted && tracks.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Добавлено файлов: ${tracks.length}')));
-      }
+      if (tracks.isNotEmpty) messenger.showSnackBar(SnackBar(content: Text(l.filesAdded(tracks.length))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось импортировать: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.importFailed('$e'))));
     } finally {
       if (mounted) setState(() => _importing = false);
     }
@@ -144,7 +142,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider);
+    final downloads = ref.watch(downloadsProvider);
     final history = lib.recentlyPlayed;
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -156,60 +156,98 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
           labelColor: VybeColors.text,
           unselectedLabelColor: VybeColors.textMuted,
           dividerColor: Colors.transparent,
-          tabs: const [Tab(text: 'Мои файлы'), Tab(text: 'История')],
+          tabs: [
+            Tab(text: l.downloads),
+            Tab(text: l.myFiles),
+            Tab(text: l.history),
+          ],
         ),
         const SizedBox(height: 16),
         Expanded(
           child: TabBarView(
             controller: _tabs,
             children: [
+              // Offline downloads.
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ListHeader(
-                    title: 'Мои файлы',
+                  ListHeader(
+                    title: l.downloads,
+                    tracks: downloads.downloaded,
+                    extra: downloads.queued.isEmpty
+                        ? null
+                        : Chip(
+                            avatar: const SizedBox.square(
+                              dimension: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            label: Text('${l.downloading} ${downloads.queued.length}'),
+                          ),
+                  ),
+                  Expanded(
+                    child: downloads.downloaded.isEmpty
+                        ? EmptyState(icon: Icons.download_rounded, title: l.downloadsEmpty, subtitle: l.downloadsHint)
+                        : _TrackList(tracks: downloads.downloaded),
+                  ),
+                ],
+              ),
+              // Imported files.
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ListHeader(
+                    title: l.myFiles,
                     tracks: lib.localTracks,
                     extra: FilledButton.tonalIcon(
                       onPressed: _importing ? null : _import,
                       icon: _importing
                           ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.add_rounded),
-                      label: const Text('Добавить'),
+                      label: Text(l.add),
                     ),
                   ),
                   Expanded(
                     child: lib.localTracks.isEmpty
                         ? EmptyState(
                             icon: Icons.folder_open_rounded,
-                            title: 'Добавьте музыку с устройства',
-                            subtitle: 'MP3, M4A, FLAC, OGG, OPUS, WAV. Название берётся из имени файла «Артист - Трек»',
-                            action: FilledButton.icon(onPressed: _import, icon: const Icon(Icons.add_rounded), label: const Text('Выбрать файлы')),
+                            title: l.addMusicTitle,
+                            subtitle: l.addMusicHint,
+                            action: FilledButton.icon(
+                              onPressed: _import,
+                              icon: const Icon(Icons.add_rounded),
+                              label: Text(l.chooseFiles),
+                            ),
                           )
                         : _TrackList(
                             tracks: lib.localTracks,
                             trailingBuilder: (t) => IconButton(
-                              tooltip: 'Убрать из медиатеки',
+                              tooltip: l.removeFromLibrary,
                               onPressed: () => ref.read(libraryProvider.notifier).removeLocalTrack(t),
-                              icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: VybeColors.textMuted),
+                              icon: const Icon(
+                                Icons.remove_circle_outline_rounded,
+                                size: 20,
+                                color: VybeColors.textMuted,
+                              ),
                             ),
                           ),
                   ),
                 ],
               ),
+              // History.
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ListHeader(
-                    title: 'История',
+                  ListHeader(
+                    title: l.history,
                     tracks: history,
                     extra: TextButton(
                       onPressed: history.isEmpty ? null : ref.read(libraryProvider.notifier).clearHistory,
-                      child: const Text('Очистить'),
+                      child: Text(l.clear),
                     ),
                   ),
                   Expanded(
                     child: history.isEmpty
-                        ? const EmptyState(icon: Icons.history_rounded, title: 'Вы ещё ничего не слушали')
+                        ? EmptyState(icon: Icons.history_rounded, title: l.historyEmpty)
                         : _TrackList(tracks: history),
                   ),
                 ],
@@ -231,121 +269,37 @@ class MixScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mix = mixes.firstWhere((m) => m.id == mixId);
     final tracks = ref.watch(mixProvider(mixId));
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(children: [
-          IconButton(onPressed: ref.read(navProvider.notifier).pop, icon: const Icon(Icons.arrow_back_rounded)),
-          const SizedBox(width: 8),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(gradient: LinearGradient(colors: mix.colors), borderRadius: BorderRadius.circular(VybeRadius.md)),
-            child: Icon(mix.icon, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: _ListHeader(title: mix.title, subtitle: mix.subtitle, tracks: tracks.value ?? const [])),
-        ]),
+        Row(
+          children: [
+            IconButton(onPressed: ref.read(navProvider.notifier).pop, icon: const Icon(Icons.arrow_back_rounded)),
+            const SizedBox(width: 8),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: mix.colors),
+                borderRadius: BorderRadius.circular(VybeRadius.md),
+              ),
+              child: Icon(mix.icon, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: ListHeader(title: mix.title, subtitle: l.mixSubtitle(mix.id), tracks: tracks.value ?? const []),
+            ),
+          ],
+        ),
         Expanded(
           child: tracks.when(
-            data: (list) => list.isEmpty
-                ? const EmptyState(icon: Icons.wifi_off_rounded, title: 'Не удалось собрать микс')
-                : _TrackList(tracks: list),
+            data: (list) =>
+                list.isEmpty ? EmptyState(icon: Icons.wifi_off_rounded, title: l.mixFailed) : _TrackList(tracks: list),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => EmptyState(icon: Icons.error_outline_rounded, title: 'Ошибка', subtitle: '$e'),
+            error: (e, _) => EmptyState(icon: Icons.error_outline_rounded, title: l.error, subtitle: '$e'),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  late final _name = TextEditingController(text: ref.read(libraryProvider).settings.userName);
-  late final _lfm = TextEditingController(text: ref.read(libraryProvider).settings.lastFmApiKey);
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _lfm.dispose();
-    super.dispose();
-  }
-
-  void _update(AppSettings Function(AppSettings) f) {
-    final store = ref.read(libraryProvider.notifier);
-    store.updateSettings(f(ref.read(libraryProvider).settings));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = ref.watch(libraryProvider.select((l) => l.settings));
-    final t = Theme.of(context).textTheme;
-    Widget section(String title, List<Widget> children) => Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: Panel(
-            accents: const GlassAccents(glowCorner: Alignment.topLeft, rimStrength: 0.7),
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 14),
-              ...children,
-            ]),
-          ),
-        );
-
-    return ListView(
-      children: [
-        Text('Настройки', style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 20),
-        section('Профиль', [
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Как к вам обращаться?'),
-            onChanged: (v) => _update((s) => s.copyWith(userName: v.trim())),
-          ),
-        ]),
-        section('Воспроизведение', [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: s.autoRadio,
-            onChanged: (v) => _update((s) => s.copyWith(autoRadio: v)),
-            title: const Text('Авто-радио'),
-            subtitle: const Text('Когда очередь закончится, VYBE продолжит похожими треками'),
-          ),
-        ]),
-        section('Рекомендации', [
-          Text(
-            'Рекомендации считаются прямо на устройстве по вашей истории и лайкам. '
-            'Чтобы улучшить их, можно подключить бесплатный ключ Last.fm API.',
-            style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _lfm,
-            decoration: const InputDecoration(labelText: 'Last.fm API key (необязательно)', hintText: 'last.fm/api/account/create'),
-            onSubmitted: (v) {
-              _update((s) => s.copyWith(lastFmApiKey: v.trim()));
-              ref.invalidate(forYouProvider);
-            },
-          ),
-        ]),
-        section('О приложении', [
-          const VybeLogo(size: 36, showTagline: true),
-          const SizedBox(height: 12),
-          Text(
-            'Your sound. Your freedom.\n'
-            'VYBE — open-source клиент для стриминга музыки (MIT). '
-            'Все данные хранятся только на этом устройстве.',
-            style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
-          ),
-        ]),
       ],
     );
   }

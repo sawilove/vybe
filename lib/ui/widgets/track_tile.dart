@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../l10n/l10n.dart';
+
 import '../../core/format.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import '../../data/download_manager.dart';
 import '../../data/library_store.dart';
 import '../../player/player_controller.dart';
 import 'common.dart';
@@ -34,6 +37,8 @@ class TrackTile extends ConsumerWidget {
     final current = ref.watch(playerProvider.select((s) => s.current));
     final playing = ref.watch(playerProvider.select((s) => s.playing));
     final isCurrent = current?.key == track.key;
+    final downloaded = ref.watch(downloadsProvider.select((d) => d.isDownloaded(track)));
+    final queued = ref.watch(downloadsProvider.select((d) => d.isQueued(track)));
     final t = Theme.of(context).textTheme;
 
     return Material(
@@ -41,7 +46,8 @@ class TrackTile extends ConsumerWidget {
       borderRadius: BorderRadius.circular(VybeRadius.md),
       child: InkWell(
         borderRadius: BorderRadius.circular(VybeRadius.md),
-        onTap: onTap ??
+        onTap:
+            onTap ??
             () {
               final q = queue ?? [track];
               ref.read(playerProvider.notifier).playQueue(q, startIndex: index ?? q.indexOf(track).clamp(0, q.length));
@@ -73,9 +79,12 @@ class TrackTile extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        if (track.source == SourceKind.local) ...[
+                        if (track.source == SourceKind.local || downloaded) ...[
                           const Icon(Icons.download_done_rounded, size: 14, color: VybeColors.accentLight),
                           const SizedBox(width: 4),
+                        ] else if (queued) ...[
+                          const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
+                          const SizedBox(width: 6),
                         ],
                         Expanded(
                           child: Text(
@@ -94,7 +103,10 @@ class TrackTile extends ConsumerWidget {
               if (track.duration != null && !dense)
                 Padding(
                   padding: const EdgeInsets.only(left: 8, right: 4),
-                  child: Text(formatDuration(track.duration), style: t.bodyMedium?.copyWith(color: VybeColors.textMuted)),
+                  child: Text(
+                    formatDuration(track.duration),
+                    style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
+                  ),
                 ),
               trailing ?? TrackMenu(track: track),
             ],
@@ -113,10 +125,12 @@ class TrackMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final liked = ref.watch(libraryProvider.select((s) => s.isLiked(track)));
-    void toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), duration: const Duration(seconds: 2)));
+    final downloaded = ref.watch(downloadsProvider.select((d) => d.isDownloaded(track)));
+    void toast(String m) =>
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), duration: const Duration(seconds: 2)));
 
     return PopupMenuButton<String>(
-      tooltip: 'Ещё',
+      tooltip: context.l10n.more,
       icon: const Icon(Icons.more_vert_rounded, color: VybeColors.textMuted, size: 20),
       color: VybeColors.surface2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(VybeRadius.md)),
@@ -125,24 +139,38 @@ class TrackMenu extends ConsumerWidget {
         switch (v) {
           case 'next':
             player.playNext(track);
-            toast('Будет следующим');
+            toast(context.l10n.willPlayNext);
           case 'queue':
             player.addToQueue(track);
-            toast('Добавлено в очередь');
+            toast(context.l10n.addedToQueue);
           case 'like':
             ref.read(libraryProvider.notifier).toggleLike(track);
           case 'radio':
             player.playTrack(track);
+          case 'download':
+            ref.read(downloadsProvider.notifier).enqueue(track);
+          case 'undownload':
+            ref.read(downloadsProvider.notifier).remove(track);
         }
       },
       itemBuilder: (_) => [
-        const PopupMenuItem(value: 'next', child: _MenuRow(Icons.playlist_play_rounded, 'Играть следующим')),
-        const PopupMenuItem(value: 'queue', child: _MenuRow(Icons.queue_music_rounded, 'Добавить в очередь')),
+        PopupMenuItem(value: 'next', child: _MenuRow(Icons.playlist_play_rounded, context.l10n.playNext)),
+        PopupMenuItem(value: 'queue', child: _MenuRow(Icons.queue_music_rounded, context.l10n.addToQueue)),
         PopupMenuItem(
           value: 'like',
-          child: _MenuRow(liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, liked ? 'Убрать из любимых' : 'В любимые'),
+          child: _MenuRow(
+            liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            liked ? context.l10n.unlike : context.l10n.like,
+          ),
         ),
-        const PopupMenuItem(value: 'radio', child: _MenuRow(Icons.radio_rounded, 'Радио по треку')),
+        PopupMenuItem(value: 'radio', child: _MenuRow(Icons.radio_rounded, context.l10n.trackRadio)),
+        if (track.source != SourceKind.local)
+          downloaded
+              ? PopupMenuItem(
+                  value: 'undownload',
+                  child: _MenuRow(Icons.delete_outline_rounded, context.l10n.removeDownload),
+                )
+              : PopupMenuItem(value: 'download', child: _MenuRow(Icons.download_rounded, context.l10n.download)),
       ],
     );
   }
@@ -167,7 +195,7 @@ class LikeButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final liked = ref.watch(libraryProvider.select((s) => s.isLiked(track)));
     return IconButton(
-      tooltip: liked ? 'Убрать из любимых' : 'В любимые',
+      tooltip: liked ? context.l10n.unlike : context.l10n.like,
       onPressed: () => ref.read(libraryProvider.notifier).toggleLike(track),
       icon: Icon(
         liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,

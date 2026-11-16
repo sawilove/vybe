@@ -1,6 +1,10 @@
 /// Where a track comes from. Every [SourceKind] has a matching `MusicSource`.
 enum SourceKind {
   youtube('YouTube'),
+  yandex('Yandex Music'),
+  vk('VK'),
+  soundcloud('SoundCloud'),
+  audius('Audius'),
   local('Local');
 
   const SourceKind(this.label);
@@ -38,39 +42,37 @@ class Track {
   bool get isLazy => id.isEmpty && query != null;
 
   /// Stable key used for likes, history and de-duplication.
-  String get key => isLazy
-      ? 'q:${query!.toLowerCase()}'
-      : '${source.name}:$id';
+  String get key => isLazy ? 'q:${query!.toLowerCase()}' : '${source.name}:$id';
 
   Track copyWith({String? id, String? title, String? artist, Duration? duration, String? artworkUrl}) => Track(
-        id: id ?? this.id,
-        title: title ?? this.title,
-        artist: artist ?? this.artist,
-        source: source,
-        duration: duration ?? this.duration,
-        artworkUrl: artworkUrl ?? this.artworkUrl,
-        query: query,
-      );
+    id: id ?? this.id,
+    title: title ?? this.title,
+    artist: artist ?? this.artist,
+    source: source,
+    duration: duration ?? this.duration,
+    artworkUrl: artworkUrl ?? this.artworkUrl,
+    query: query,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'artist': artist,
-        'source': source.name,
-        if (duration != null) 'ms': duration!.inMilliseconds,
-        if (artworkUrl != null) 'art': artworkUrl,
-        if (query != null) 'q': query,
-      };
+    'id': id,
+    'title': title,
+    'artist': artist,
+    'source': source.name,
+    if (duration != null) 'ms': duration!.inMilliseconds,
+    if (artworkUrl != null) 'art': artworkUrl,
+    if (query != null) 'q': query,
+  };
 
   factory Track.fromJson(Map<String, dynamic> j) => Track(
-        id: j['id'] as String? ?? '',
-        title: j['title'] as String? ?? '',
-        artist: j['artist'] as String? ?? '',
-        source: SourceKind.parse(j['source'] as String?),
-        duration: j['ms'] == null ? null : Duration(milliseconds: j['ms'] as int),
-        artworkUrl: j['art'] as String?,
-        query: j['q'] as String?,
-      );
+    id: j['id'] as String? ?? '',
+    title: j['title'] as String? ?? '',
+    artist: j['artist'] as String? ?? '',
+    source: SourceKind.parse(j['source'] as String?),
+    duration: j['ms'] == null ? null : Duration(milliseconds: j['ms'] as int),
+    artworkUrl: j['art'] as String?,
+    query: j['q'] as String?,
+  );
 
   @override
   bool operator ==(Object other) => other is Track && other.key == key;
@@ -90,8 +92,6 @@ class PlayEvent {
 
   Map<String, dynamic> toJson() => {'t': track.toJson(), 'at': at.millisecondsSinceEpoch};
 
-  factory PlayEvent.fromJson(Map<String, dynamic> j) => PlayEvent(
-        Track.fromJson(j['t'] as Map<String, dynamic>),
-        DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
-      );
+  factory PlayEvent.fromJson(Map<String, dynamic> j) =>
+      PlayEvent(Track.fromJson(j['t'] as Map<String, dynamic>), DateTime.fromMillisecondsSinceEpoch(j['at'] as int));
 }

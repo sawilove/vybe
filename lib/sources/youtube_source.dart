@@ -1,6 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:convert';
+import 'dart:io' show File, Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 
 import '../core/models.dart';
@@ -9,11 +11,12 @@ import 'music_source.dart';
 /// YouTube / YouTube Music source, built on `youtube_explode_dart`.
 ///
 /// NOTE: playing YouTube in a third-party client is against YouTube's Terms of
-/// Service. See docs/ARCHITECTURE.md ("Про YouTube") for the consequences.
-class YouTubeSource implements MusicSource {
+/// Service. See docs/ARCHITECTURE.md ("About YouTube") for the consequences.
+class YouTubeSource extends MusicSource {
   YouTubeSource({yt.YoutubeExplode? client}) : _yt = client ?? yt.YoutubeExplode();
 
   final yt.YoutubeExplode _yt;
+  final _http = http.Client();
 
   /// Stream URLs expire after a few hours; cache them for a shorter time.
   final _streamCache = <String, (Uri, DateTime)>{};
@@ -28,12 +31,64 @@ class YouTubeSource implements MusicSource {
     if (q.isEmpty) return const [];
     // `search.search()` crashes on results like "Streamed 2 days ago", so use
     // the raw results and map them ourselves.
-    final results = await _yt.search.searchContent(q, filter: yt.TypeFilters.video);
-    return [
-      for (final v in results.whereType<yt.SearchVideo>())
-        if (!v.isLive && _isSongLength(parseDuration(v.duration)))
-          _toTrack(v.id.value, v.title, v.author, parseDuration(v.duration)),
-    ];
+    try {
+      final results = await _yt.search.searchContent(q, filter: yt.TypeFilters.video);
+      return [
+        for (final v in results.whereType<yt.SearchVideo>())
+          if (!v.isLive && _isSongLength(parseDuration(v.duration)))
+            _toTrack(v.id.value, v.title, v.author, parseDuration(v.duration)),
+      ];
+    } catch (e) {
+      // The library chokes on some result layouts (new renderer types).
+      // Fall back to our own tolerant parser of the same search endpoint.
+      debugPrint('YouTube: library search failed ($e), using fallback');
+      return _searchFallback(q);
+    }
+  }
+
+  Future<List<Track>> _searchFallback(String q) async {
+    final res = await _http.post(
+      Uri.parse('https://www.youtube.com/youtubei/v1/search?prettyPrint=false'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'context': {
+          'client': {'clientName': 'WEB', 'clientVersion': '2.20251101.00.00', 'hl': 'en'},
+        },
+        'query': q,
+        'params': 'EgIQAQ%3D%3D', // type: video
+      }),
+    );
+    if (res.statusCode >= 400) throw SourceException('YouTube search: HTTP ${res.statusCode}');
+    return parseSearchResponse(jsonDecode(utf8.decode(res.bodyBytes)));
+  }
+
+  /// Collects every `videoRenderer` in a search response, ignoring anything unknown.
+  @visibleForTesting
+  static List<Track> parseSearchResponse(dynamic json) {
+    final out = <Track>[];
+    void walk(dynamic o) {
+      if (o is Map) {
+        final v = o['videoRenderer'];
+        if (v is Map) {
+          String? text(dynamic x) => x is Map
+              ? (x['simpleText'] as String? ?? ((x['runs'] as List?)?.firstOrNull as Map?)?['text'] as String?)
+              : null;
+          final id = v['videoId'] as String?;
+          final title = text(v['title']);
+          final channel = text(v['ownerText']) ?? text(v['longBylineText']) ?? '';
+          final duration = parseDuration(text(v['lengthText']) ?? '');
+          if (id != null && title != null && _isSongLength(duration)) {
+            out.add(_toTrack(id, title, channel, duration));
+          }
+        }
+        o.values.forEach(walk);
+      } else if (o is List) {
+        o.forEach(walk);
+      }
+    }
+
+    walk(json);
+    return out;
   }
 
   @override
@@ -41,7 +96,7 @@ class YouTubeSource implements MusicSource {
     var t = track;
     if (t.isLazy) {
       final matches = await search(t.query!);
-      if (matches.isEmpty) throw SourceException('Не нашли «${t.query}» на YouTube');
+      if (matches.isEmpty) throw SourceException('Not found on YouTube: ${t.query}');
       t = matches.first;
     }
 
@@ -62,7 +117,7 @@ class YouTubeSource implements MusicSource {
           continue;
         }
       }
-      throw SourceException('YouTube не отдаёт этот трек: $t');
+      throw SourceException('YouTube does not serve this track: $t');
     }
   }
 
@@ -77,7 +132,7 @@ class YouTubeSource implements MusicSource {
       ytClients: [yt.YoutubeApiClient.ios, yt.YoutubeApiClient.androidVr],
     );
     final audio = manifest.audioOnly;
-    if (audio.isEmpty) throw SourceException('У этого видео нет аудиопотока');
+    if (audio.isEmpty) throw SourceException('This video has no audio stream');
 
     // AVPlayer (iOS/macOS) can't play WebM/Opus; prefer MP4/AAC there.
     final preferMp4 = !kIsWeb && (Platform.isIOS || Platform.isMacOS);
@@ -110,7 +165,26 @@ class YouTubeSource implements MusicSource {
     ];
   }
 
-  void dispose() => _yt.close();
+  /// YouTube throttles plain range requests; use the library's chunked downloader.
+  @override
+  Future<DownloadResult> download(Track track, String basePath, {http.Client? client}) async {
+    final t = (await resolveStream(track)).track;
+    final manifest = await _yt.videos.streams.getManifest(
+      t.id,
+      ytClients: [yt.YoutubeApiClient.ios, yt.YoutubeApiClient.androidVr],
+    );
+    final audio = manifest.audioOnly;
+    final mp4 = audio.where((s) => s.container == yt.StreamContainer.mp4).toList();
+    final info = (mp4.isNotEmpty ? mp4 : audio.toList()).withHighestBitrate();
+    final file = File('$basePath.${info.container == yt.StreamContainer.mp4 ? 'm4a' : 'webm'}');
+    await _yt.videos.streams.get(info).pipe(file.openWrite());
+    return DownloadResult(t, file.path);
+  }
+
+  void dispose() {
+    _yt.close();
+    _http.close();
+  }
 
   /// Filters out live streams, shorts and hour-long compilations.
   static bool _isSongLength(Duration? d) =>

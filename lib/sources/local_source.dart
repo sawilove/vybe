@@ -9,7 +9,7 @@ import 'music_source.dart';
 ///
 /// The imported list itself lives in `LibraryStore`; this source gets it via
 /// [tracksProvider] so search and radio work over the user's files.
-class LocalSource implements MusicSource {
+class LocalSource extends MusicSource {
   LocalSource(this.tracksProvider);
 
   final List<Track> Function() tracksProvider;
@@ -34,7 +34,7 @@ class LocalSource implements MusicSource {
   Future<ResolvedStream> resolveStream(Track track) async {
     final file = File(track.id);
     if (!await file.exists()) {
-      throw SourceException('Файл не найден: ${track.id}');
+      throw SourceException('File not found: ${track.id}');
     }
     return ResolvedStream(Uri.file(file.path), track: track);
   }
@@ -55,7 +55,7 @@ class LocalSource implements MusicSource {
     final parts = base.split(RegExp(r'\s+[-–—]\s+'));
     final (artist, title) = parts.length >= 2
         ? (parts.first.trim(), parts.sublist(1).join(' - ').trim())
-        : ('Неизвестный артист', base.trim());
+        : ('Unknown artist', base.trim());
     return Track(id: path, title: title, artist: artist, source: SourceKind.local);
   }
 

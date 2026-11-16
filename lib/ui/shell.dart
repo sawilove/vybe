@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/theme.dart';
+import '../l10n/l10n.dart';
+import '../data/download_manager.dart';
 import '../data/library_store.dart';
 import '../player/player_controller.dart';
 import '../recommendations/recommendation_service.dart';
@@ -10,6 +12,7 @@ import 'navigation.dart';
 import 'screens/home_screen.dart';
 import 'screens/library_screens.dart';
 import 'screens/search_screen.dart';
+import 'screens/settings_screen.dart';
 import 'widgets/common.dart';
 import 'widgets/player_widgets.dart';
 
@@ -40,20 +43,35 @@ class _AppShellState extends ConsumerState<AppShell> {
     final phone = width < kPhoneBreakpoint;
     final wide = width >= kWideBreakpoint;
 
+    // Keeps the download manager alive so liked tracks get downloaded in the background.
+    ref.listen(downloadsProvider.select((s) => s.failed), (prev, next) {
+      final fresh = next.entries.where((e) => !(prev?.containsKey(e.key) ?? false));
+      for (final e in fresh.take(1)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.downloadFailed(e.value))));
+      }
+    });
     ref.listen(playerProvider.select((s) => s.error), (_, err) {
-      if (err != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      if (err != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.playbackFailed(err))));
+      }
     });
 
     final shortcuts = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.slash): () => _searchFocus.requestFocus(),
-      const SingleActivator(LogicalKeyboardKey.space, control: true): () => ref.read(playerProvider.notifier).togglePlay(),
-      const SingleActivator(LogicalKeyboardKey.arrowRight, control: true): () => ref.read(playerProvider.notifier).next(),
-      const SingleActivator(LogicalKeyboardKey.arrowLeft, control: true): () => ref.read(playerProvider.notifier).previous(),
+      const SingleActivator(LogicalKeyboardKey.space, control: true): () =>
+          ref.read(playerProvider.notifier).togglePlay(),
+      const SingleActivator(LogicalKeyboardKey.arrowRight, control: true): () =>
+          ref.read(playerProvider.notifier).next(),
+      const SingleActivator(LogicalKeyboardKey.arrowLeft, control: true): () =>
+          ref.read(playerProvider.notifier).previous(),
     };
 
     final body = phone ? _phone() : _desktop(wide);
     return AmbientBackground(
-      child: CallbackShortcuts(bindings: shortcuts, child: Focus(autofocus: true, child: body)),
+      child: CallbackShortcuts(
+        bindings: shortcuts,
+        child: Focus(autofocus: true, child: body),
+      ),
     );
   }
 
@@ -62,12 +80,12 @@ class _AppShellState extends ConsumerState<AppShell> {
     final page = switch (nav.top) {
       MixDestination(:final mixId) => MixScreen(mixId: mixId),
       TabDestination(:final tab) => switch (tab) {
-          AppTab.home => const HomeScreen(),
-          AppTab.search => SearchScreen(showField: phone),
-          AppTab.library => const LibraryScreen(),
-          AppTab.liked => const LikedScreen(),
-          AppTab.settings => const SettingsScreen(),
-        },
+        AppTab.home => const HomeScreen(),
+        AppTab.search => SearchScreen(showField: phone),
+        AppTab.library => const LibraryScreen(),
+        AppTab.liked => const LikedScreen(),
+        AppTab.settings => const SettingsScreen(),
+      },
     };
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
@@ -93,25 +111,27 @@ class _AppShellState extends ConsumerState<AppShell> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(children: [
-                          if (ref.watch(navProvider).canPop)
-                            IconButton(onPressed: ref.read(navProvider.notifier).pop, icon: const Icon(Icons.arrow_back_rounded)),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 520),
-                            child: SearchField(focusNode: _searchFocus),
-                          ),
-                          const Spacer(),
-                          const _UserChip(),
-                        ]),
+                        Row(
+                          children: [
+                            if (ref.watch(navProvider).canPop)
+                              IconButton(
+                                onPressed: ref.read(navProvider.notifier).pop,
+                                icon: const Icon(Icons.arrow_back_rounded),
+                              ),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 520),
+                              child: SearchField(focusNode: _searchFocus),
+                            ),
+                            const Spacer(),
+                            const _UserChip(),
+                          ],
+                        ),
                         const SizedBox(height: 20),
                         Expanded(child: _content(phone: false)),
                       ],
                     ),
                   ),
-                  if (showPanel) ...[
-                    const SizedBox(width: 20),
-                    const SizedBox(width: 320, child: NowPlayingPanel()),
-                  ],
+                  if (showPanel) ...[const SizedBox(width: 20), const SizedBox(width: 320, child: NowPlayingPanel())],
                 ],
               ),
             ),
@@ -142,7 +162,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           title: const VybeLogo(size: 28),
           actions: [
             IconButton(
-              tooltip: 'Настройки',
+              tooltip: context.l10n.navSettings,
               onPressed: () => ref.read(navProvider.notifier).selectTab(AppTab.settings),
               icon: const Icon(Icons.settings_outlined),
             ),
@@ -158,7 +178,12 @@ class _AppShellState extends ConsumerState<AppShell> {
               selectedIndex: selected < 0 ? 0 : selected,
               onDestinationSelected: (i) => ref.read(navProvider.notifier).selectTab(tabs[i]),
               destinations: [
-                for (final t in tabs) NavigationDestination(icon: Icon(t.iconOutlined), selectedIcon: Icon(t.icon), label: t.label),
+                for (final t in tabs)
+                  NavigationDestination(
+                    icon: Icon(t.iconOutlined),
+                    selectedIcon: Icon(t.icon),
+                    label: t.label(context.l10n),
+                  ),
               ],
             ),
           ],
@@ -189,13 +214,27 @@ class _Sidebar extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: selected
-                  ? const BoxDecoration(border: Border(left: BorderSide(color: VybeColors.accent, width: 3)))
+                  ? const BoxDecoration(
+                      border: Border(left: BorderSide(color: VybeColors.accent, width: 3)),
+                    )
                   : null,
-              child: Row(children: [
-                Icon(selected ? tab.icon : tab.iconOutlined, color: selected ? VybeColors.text : VybeColors.textMuted, size: 22),
-                const SizedBox(width: 14),
-                Text(tab.label, style: t.bodyLarge?.copyWith(color: selected ? VybeColors.text : VybeColors.textMuted, fontWeight: selected ? FontWeight.w500 : null)),
-              ]),
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? tab.icon : tab.iconOutlined,
+                    color: selected ? VybeColors.text : VybeColors.textMuted,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    tab.label(context.l10n),
+                    style: t.bodyLarge?.copyWith(
+                      color: selected ? VybeColors.text : VybeColors.textMuted,
+                      fontWeight: selected ? FontWeight.w500 : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -212,7 +251,10 @@ class _Sidebar extends ConsumerWidget {
           for (final tab in AppTab.values.where((t) => t != AppTab.settings)) item(tab),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 24, 10, 8),
-            child: Text('Ваши миксы', style: t.bodyMedium?.copyWith(color: VybeColors.textMuted, fontWeight: FontWeight.w500)),
+            child: Text(
+              context.l10n.yourMixes,
+              style: t.bodyMedium?.copyWith(color: VybeColors.textMuted, fontWeight: FontWeight.w500),
+            ),
           ),
           Expanded(
             child: ListView(
@@ -225,7 +267,10 @@ class _Sidebar extends ConsumerWidget {
                     leading: Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(gradient: LinearGradient(colors: m.colors), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: m.colors),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Icon(m.icon, size: 16, color: Colors.white),
                     ),
                     title: Text(m.title, style: t.bodyMedium),
@@ -258,18 +303,24 @@ class _UserChip extends ConsumerWidget {
       onTap: () => ref.read(navProvider.notifier).selectTab(AppTab.settings),
       child: Padding(
         padding: const EdgeInsets.all(4),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: VybeColors.accent,
-            child: Text(name.isEmpty ? 'V' : name.characters.first.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-          ),
-          if (name.isNotEmpty) ...[
-            const SizedBox(width: 10),
-            Text(name, style: t.bodyMedium),
-            const SizedBox(width: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: VybeColors.accent,
+              child: Text(
+                name.isEmpty ? 'V' : name.characters.first.toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (name.isNotEmpty) ...[
+              const SizedBox(width: 10),
+              Text(name, style: t.bodyMedium),
+              const SizedBox(width: 6),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }

@@ -28,7 +28,10 @@ class LibraryState {
   /// Distinct tracks from history, newest first.
   List<Track> get recentlyPlayed {
     final seen = <String>{};
-    return [for (final e in history) if (seen.add(e.track.key)) e.track];
+    return [
+      for (final e in history)
+        if (seen.add(e.track.key)) e.track,
+    ];
   }
 
   /// Artists ranked by plays, weighting recent plays higher.
@@ -51,35 +54,98 @@ class LibraryState {
     List<PlayEvent>? history,
     List<Track>? localTracks,
     AppSettings? settings,
-  }) =>
-      LibraryState(
-        liked: liked ?? this.liked,
-        history: history ?? this.history,
-        localTracks: localTracks ?? this.localTracks,
-        settings: settings ?? this.settings,
-      );
+  }) => LibraryState(
+    liked: liked ?? this.liked,
+    history: history ?? this.history,
+    localTracks: localTracks ?? this.localTracks,
+    settings: settings ?? this.settings,
+  );
 }
 
 class AppSettings {
-  const AppSettings({this.userName = '', this.autoRadio = true, this.lastFmApiKey = ''});
+  const AppSettings({
+    this.userName = '',
+    this.autoRadio = true,
+    this.lastFmApiKey = '',
+    this.locale = '',
+    this.disabledSources = const {},
+    this.yandexToken = '',
+    this.vkToken = '',
+    this.vkUserAgent = '',
+    this.soundcloudClientId = '',
+    this.autoDownloadLiked = true,
+  });
 
   final String userName;
   final bool autoRadio;
   final String lastFmApiKey;
 
-  AppSettings copyWith({String? userName, bool? autoRadio, String? lastFmApiKey}) => AppSettings(
-        userName: userName ?? this.userName,
-        autoRadio: autoRadio ?? this.autoRadio,
-        lastFmApiKey: lastFmApiKey ?? this.lastFmApiKey,
-      );
+  /// '' = follow the system, otherwise a language code ('en', 'ru').
+  final String locale;
 
-  Map<String, dynamic> toJson() => {'name': userName, 'radio': autoRadio, 'lfm': lastFmApiKey};
+  /// Sources the user switched off. Everything else is searched by default.
+  final Set<SourceKind> disabledSources;
+
+  /// Credentials of the user's own accounts. Stored only on this device.
+  final String yandexToken;
+  final String vkToken;
+  final String vkUserAgent;
+  final String soundcloudClientId;
+
+  /// Download liked tracks for offline listening.
+  final bool autoDownloadLiked;
+
+  bool isEnabled(SourceKind k) => !disabledSources.contains(k);
+
+  AppSettings copyWith({
+    String? userName,
+    bool? autoRadio,
+    String? lastFmApiKey,
+    String? locale,
+    Set<SourceKind>? disabledSources,
+    String? yandexToken,
+    String? vkToken,
+    String? vkUserAgent,
+    String? soundcloudClientId,
+    bool? autoDownloadLiked,
+  }) => AppSettings(
+    userName: userName ?? this.userName,
+    autoRadio: autoRadio ?? this.autoRadio,
+    lastFmApiKey: lastFmApiKey ?? this.lastFmApiKey,
+    locale: locale ?? this.locale,
+    disabledSources: disabledSources ?? this.disabledSources,
+    yandexToken: yandexToken ?? this.yandexToken,
+    vkToken: vkToken ?? this.vkToken,
+    vkUserAgent: vkUserAgent ?? this.vkUserAgent,
+    soundcloudClientId: soundcloudClientId ?? this.soundcloudClientId,
+    autoDownloadLiked: autoDownloadLiked ?? this.autoDownloadLiked,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'name': userName,
+    'radio': autoRadio,
+    'lfm': lastFmApiKey,
+    'locale': locale,
+    'off': [for (final k in disabledSources) k.name],
+    'ym': yandexToken,
+    'vk': vkToken,
+    'vkUa': vkUserAgent,
+    'sc': soundcloudClientId,
+    'dlLiked': autoDownloadLiked,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
-        userName: j['name'] as String? ?? '',
-        autoRadio: j['radio'] as bool? ?? true,
-        lastFmApiKey: j['lfm'] as String? ?? '',
-      );
+    userName: j['name'] as String? ?? '',
+    autoRadio: j['radio'] as bool? ?? true,
+    lastFmApiKey: j['lfm'] as String? ?? '',
+    locale: j['locale'] as String? ?? '',
+    disabledSources: {for (final n in (j['off'] as List?) ?? const []) SourceKind.parse(n as String)},
+    yandexToken: j['ym'] as String? ?? '',
+    vkToken: j['vk'] as String? ?? '',
+    vkUserAgent: j['vkUa'] as String? ?? '',
+    soundcloudClientId: j['sc'] as String? ?? '',
+    autoDownloadLiked: j['dlLiked'] as bool? ?? true,
+  );
 }
 
 /// Everything VYBE remembers about the user. Stored only on the device.
@@ -121,9 +187,7 @@ class LibraryStore extends Notifier<LibraryState> {
   }
 
   void toggleLike(Track t) {
-    final liked = state.isLiked(t)
-        ? state.liked.where((l) => l.key != t.key).toList()
-        : [t, ...state.liked];
+    final liked = state.isLiked(t) ? state.liked.where((l) => l.key != t.key).toList() : [t, ...state.liked];
     state = state.copyWith(liked: liked);
     _save(_kLiked, liked.map((e) => e.toJson()).toList());
   }

@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../data/library_store.dart';
 import '../../player/player_controller.dart';
 import '../../recommendations/recommendation_service.dart';
+import '../../l10n/l10n.dart';
 import '../navigation.dart';
 import '../widgets/common.dart';
 import '../widgets/track_tile.dart';
@@ -40,35 +41,35 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 28),
-          const SectionHeader('Сделано для вас'),
+          SectionHeader(context.l10n.madeForYou),
           const _MixGrid(),
           const SizedBox(height: 28),
           SectionHeader(
-            hasHistory ? 'Рекомендации' : 'Популярное сейчас',
-            action: 'Обновить',
+            hasHistory ? context.l10n.recommended : context.l10n.trendingNow,
+            action: context.l10n.refresh,
             onAction: () => ref.invalidate(forYouProvider),
           ),
           forYou.when(
             data: (list) => list.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.wifi_off_rounded,
-                    title: 'Пока нечего рекомендовать',
-                    subtitle: 'Проверьте подключение к интернету или найдите трек в поиске',
+                    title: context.l10n.nothingToRecommend,
+                    subtitle: context.l10n.checkConnection,
                   )
                 : _TwoColumnTracks(tracks: list.take(10).toList()),
             loading: () => const _ListSkeleton(),
             error: (e, _) => EmptyState(
               icon: Icons.error_outline_rounded,
-              title: 'Не удалось загрузить рекомендации',
+              title: context.l10n.recommendationsFailed,
               subtitle: '$e',
-              action: FilledButton(onPressed: () => ref.invalidate(forYouProvider), child: const Text('Повторить')),
+              action: FilledButton(onPressed: () => ref.invalidate(forYouProvider), child: Text(context.l10n.retry)),
             ),
           ),
           if (hasHistory) ...[
             const SizedBox(height: 28),
             SectionHeader(
-              'Недавно слушали',
-              action: 'Все',
+              context.l10n.recentlyPlayed,
+              action: context.l10n.seeAll,
               onAction: () => ref.read(navProvider.notifier).selectTab(AppTab.library),
             ),
             _TwoColumnTracks(tracks: recent),
@@ -80,52 +81,33 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Slide {
-  const _Slide({
-    required this.image,
-    required this.subtitle,
-    this.title,
-    this.mixId,
-    this.alignment = Alignment.center,
-  });
+  const _Slide({required this.id, required this.image, this.mixId, this.alignment = Alignment.center});
 
+  /// Text key: 'home' shows the personal greeting.
+  final String id;
   final String image;
-
-  /// Null → the personal greeting.
-  final String? title;
-  final String subtitle;
 
   /// Null → plays "For you"; otherwise plays that mix.
   final String? mixId;
   final Alignment alignment;
+
+  String title(BuildContext context, String name) {
+    final l = context.l10n;
+    return switch (id) {
+      'home' =>
+        name.isEmpty ? '${l.greeting(partOfDay(DateTime.now()))}!' : '${l.greeting(partOfDay(DateTime.now()))},\n$name',
+      'late' => 'Late Night',
+      'chill' => 'Chill Vibes',
+      _ => l.heroTitle(id),
+    };
+  }
 }
 
 const _slides = [
-  _Slide(
-    image: 'assets/banners/city.jpg',
-    subtitle: 'Давайте найдём что-нибудь под настроение…',
-    alignment: Alignment(0.4, -0.2),
-  ),
-  _Slide(
-    image: 'assets/banners/moon.jpg',
-    title: 'Late Night',
-    subtitle: 'Тихие треки для поздних часов',
-    mixId: 'late',
-    alignment: Alignment(0.6, -0.4),
-  ),
-  _Slide(
-    image: 'assets/banners/concert.jpg',
-    title: 'Громче!',
-    subtitle: 'Энергия для тренировки и драйва',
-    mixId: 'workout',
-    alignment: Alignment(0.3, -0.3),
-  ),
-  _Slide(
-    image: 'assets/banners/vinyl.jpg',
-    title: 'Chill Vibes',
-    subtitle: 'Расслабься — мы подобрали спокойный микс',
-    mixId: 'chill',
-    alignment: Alignment(0.5, 0),
-  ),
+  _Slide(id: 'home', image: 'assets/banners/city.jpg', alignment: Alignment(0.4, -0.2)),
+  _Slide(id: 'late', image: 'assets/banners/moon.jpg', mixId: 'late', alignment: Alignment(0.6, -0.4)),
+  _Slide(id: 'workout', image: 'assets/banners/concert.jpg', mixId: 'workout', alignment: Alignment(0.3, -0.3)),
+  _Slide(id: 'chill', image: 'assets/banners/vinyl.jpg', mixId: 'chill', alignment: Alignment(0.5, 0)),
 ];
 
 /// Hero carousel with atmospheric photos (CC0, tinted into the brand palette).
@@ -229,14 +211,14 @@ class _HeroState extends ConsumerState<_Hero> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  tooltip: 'Назад',
+                  tooltip: context.l10n.back,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => _go(_index - 1 + _slides.length),
                   icon: const Icon(Icons.chevron_left_rounded),
                 ),
                 Text('${_index + 1} / ${_slides.length}', style: Theme.of(context).textTheme.bodyMedium),
                 IconButton(
-                  tooltip: 'Вперёд',
+                  tooltip: context.l10n.forward,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => _go(_index + 1),
                   icon: const Icon(Icons.chevron_right_rounded),
@@ -262,8 +244,7 @@ class _SlideView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
     final name = ref.watch(libraryProvider.select((s) => s.settings.userName));
-    final greeting = greetingFor(DateTime.now());
-    final title = slide.title ?? (name.isEmpty ? '$greeting!' : '$greeting,\n$name');
+    final title = slide.title(context, name);
 
     return Stack(
       fit: StackFit.expand,
@@ -319,7 +300,7 @@ class _SlideView extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                slide.subtitle,
+                context.l10n.heroSubtitle(slide.id),
                 maxLines: 2,
                 style: t.bodyLarge?.copyWith(color: VybeColors.text.withValues(alpha: 0.85)),
               ),
@@ -329,7 +310,7 @@ class _SlideView extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: onPlay,
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(slide.mixId == null ? 'Слушать микс' : 'Слушать'),
+                    label: Text(slide.mixId == null ? context.l10n.playMix : context.l10n.play),
                     style: FilledButton.styleFrom(
                       backgroundColor: VybeColors.accent,
                       foregroundColor: Colors.white,
@@ -339,7 +320,7 @@ class _SlideView extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   IconButton.filledTonal(
-                    tooltip: 'Перемешать',
+                    tooltip: context.l10n.shuffle,
                     onPressed: onShuffle,
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.12),
@@ -442,7 +423,7 @@ class MixCard extends ConsumerWidget {
                               style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                             ),
                             Text(
-                              mix.subtitle,
+                              context.l10n.mixSubtitle(mix.id),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: t.bodySmall?.copyWith(color: Colors.white70),
@@ -451,7 +432,7 @@ class MixCard extends ConsumerWidget {
                         ),
                       ),
                       IconButton.filled(
-                        tooltip: 'Слушать',
+                        tooltip: context.l10n.play,
                         onPressed: () async {
                           final list = await ref.read(mixProvider(mix.id).future);
                           if (list.isNotEmpty) ref.read(playerProvider.notifier).playQueue(list);

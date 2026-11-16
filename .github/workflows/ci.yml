@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.50.0
+
+jobs:
+  check:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: tool/check_version.sh
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: dart format --output=none --set-exit-if-changed --line-length 120 lib test tool || echo "::warning::Code is not formatted (dart format -l 120)"
+      - run: flutter analyze
+      - run: flutter test
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: android, os: ubuntu-latest }
+          - { target: linux, os: ubuntu-latest }
+          - { target: windows, os: windows-latest }
+          - { target: macos, os: macos-latest }
+          - { target: ios, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - if: matrix.target == 'android'
+        uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev
+      - run: flutter pub get
+      - if: matrix.target == 'android'
+        run: flutter build apk --debug
+      - if: matrix.target == 'linux'
+        run: flutter build linux --debug
+      - if: matrix.target == 'windows'
+        run: flutter build windows --debug
+      - if: matrix.target == 'macos'
+        run: flutter build macos --debug
+      - if: matrix.target == 'ios'
+        run: flutter build ios --debug --no-codesign

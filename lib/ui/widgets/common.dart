@@ -46,8 +46,7 @@ class Artwork extends StatelessWidget {
               fit: BoxFit.cover,
               cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
               errorBuilder: (_, _, _) => placeholder,
-              frameBuilder: (_, child, frame, sync) =>
-                  sync || frame != null ? child : placeholder,
+              frameBuilder: (_, child, frame, sync) => sync || frame != null ? child : placeholder,
             ),
     );
   }
@@ -67,16 +66,15 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
           ),
           if (action != null)
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(foregroundColor: VybeColors.textMuted),
-              child: Row(children: [Text(action!), const SizedBox(width: 6), const Icon(Icons.arrow_forward_rounded, size: 16)]),
+              child: Row(
+                children: [Text(action!), const SizedBox(width: 6), const Icon(Icons.arrow_forward_rounded, size: 16)],
+              ),
             ),
         ],
       ),
@@ -201,7 +199,11 @@ class EmptyState extends StatelessWidget {
             Text(title, style: t.titleMedium, textAlign: TextAlign.center),
             if (subtitle != null) ...[
               const SizedBox(height: 6),
-              Text(subtitle!, style: t.bodyMedium?.copyWith(color: VybeColors.textMuted), textAlign: TextAlign.center),
+              Text(
+                subtitle!,
+                style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
             ],
             if (action != null) ...[const SizedBox(height: 20), action!],
           ],
@@ -227,6 +229,5 @@ class Panel extends StatelessWidget {
   final GlassAccents accents;
 
   @override
-  Widget build(BuildContext context) =>
-      GlassSurface(color: color, padding: padding, accents: accents, child: child);
+  Widget build(BuildContext context) => GlassSurface(color: color, padding: padding, accents: accents, child: child);
 }

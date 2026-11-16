@@ -8,7 +8,7 @@ import 'package:vybe/data/library_store.dart';
 import 'package:vybe/sources/music_source.dart';
 import 'package:vybe/sources/source_registry.dart';
 
-class FakeSource implements MusicSource {
+class FakeSource extends MusicSource {
   FakeSource(this.kind);
 
   @override
@@ -16,7 +16,13 @@ class FakeSource implements MusicSource {
 
   final catalog = [
     for (var i = 0; i < 12; i++)
-      Track(id: 'id$i', title: 'Song $i', artist: 'Artist ${i % 5}', source: SourceKind.youtube, duration: Duration(seconds: 180 + i)),
+      Track(
+        id: 'id$i',
+        title: 'Song $i',
+        artist: 'Artist ${i % 5}',
+        source: SourceKind.youtube,
+        duration: Duration(seconds: 180 + i),
+      ),
   ];
 
   @override
@@ -29,19 +35,23 @@ class FakeSource implements MusicSource {
   Future<ResolvedStream> resolveStream(Track track) => throw UnimplementedError();
 }
 
-Future<void> pumpApp(WidgetTester tester, Size size) async {
-  SharedPreferences.setMockInitialValues({});
-  final prefs = await SharedPreferences.getInstance();
+Future<void> pumpApp(WidgetTester tester, Size size, {Map<String, Object> prefs = const {}}) async {
+  SharedPreferences.setMockInitialValues(prefs);
+  final sp = await SharedPreferences.getInstance();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      sharedPrefsProvider.overrideWithValue(prefs),
-      sourceRegistryProvider.overrideWithValue(SourceRegistry([FakeSource(SourceKind.local), FakeSource(SourceKind.youtube)])),
-    ],
-    child: const VybeApp(googleFonts: false),
-  ));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sharedPrefsProvider.overrideWithValue(sp),
+        sourceRegistryProvider.overrideWithValue(
+          SourceRegistry([FakeSource(SourceKind.local), FakeSource(SourceKind.youtube)]),
+        ),
+      ],
+      child: const VybeApp(googleFonts: false),
+    ),
+  );
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -55,10 +65,14 @@ void main() {
     testWidgets('renders home on $name without overflow', (tester) async {
       await pumpApp(tester, size);
       expect(tester.takeException(), isNull);
-      expect(find.text('Сделано для вас'), findsOneWidget);
+      expect(find.text('Made for you'), findsOneWidget);
       expect(find.text('Chill Vibes'), findsWidgets);
       // Recommendations are loaded from the fake source.
-      await tester.scrollUntilVisible(find.text('Song 0'), 200, scrollable: find.descendant(of: find.byKey(const Key('home-list')), matching: find.byType(Scrollable)).first);
+      await tester.scrollUntilVisible(
+        find.text('Song 0'),
+        200,
+        scrollable: find.descendant(of: find.byKey(const Key('home-list')), matching: find.byType(Scrollable)).first,
+      );
       expect(find.text('Song 0'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -66,12 +80,18 @@ void main() {
 
   testWidgets('search finds tracks across sources', (tester) async {
     await pumpApp(tester, const Size(390, 844));
-    await tester.tap(find.text('Поиск').last);
+    await tester.tap(find.text('Search').last);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'song');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Найдено: 12'), findsOneWidget);
+    expect(find.text('All 12'), findsOneWidget);
+  });
+
+  testWidgets('switches the UI to Russian from settings', (tester) async {
+    await pumpApp(tester, const Size(1672, 941), prefs: {'vybe.settings': '{"locale":"ru"}'});
+    expect(find.text('Сделано для вас'), findsOneWidget);
+    expect(find.text('Главная'), findsWidgets);
   });
 }

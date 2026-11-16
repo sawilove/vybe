@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../l10n/l10n.dart';
+
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../player/player_controller.dart';
@@ -61,7 +63,10 @@ class _SeekBarState extends ConsumerState<SeekBar> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [Text(formatDuration(shown), style: muted), Text(formatDuration(dur), style: muted)],
+              children: [
+                Text(formatDuration(shown), style: muted),
+                Text(formatDuration(dur), style: muted),
+              ],
             ),
           ),
       ],
@@ -88,12 +93,12 @@ class TransportControls extends ConsumerWidget {
       children: [
         if (withModes)
           IconButton(
-            tooltip: 'Перемешать',
+            tooltip: context.l10n.shuffle,
             onPressed: c.toggleShuffle,
             icon: Icon(Icons.shuffle_rounded, color: modeColor(s.shuffle)),
           ),
         IconButton(
-          tooltip: 'Предыдущий',
+          tooltip: context.l10n.previous,
           onPressed: s.current == null ? null : c.previous,
           icon: Icon(Icons.skip_previous_rounded, size: iconSize),
         ),
@@ -107,16 +112,16 @@ class TransportControls extends ConsumerWidget {
           ),
         ),
         IconButton(
-          tooltip: 'Следующий',
+          tooltip: context.l10n.next,
           onPressed: s.hasNext ? c.next : null,
           icon: Icon(Icons.skip_next_rounded, size: iconSize),
         ),
         if (withModes)
           IconButton(
             tooltip: switch (s.repeat) {
-              RepeatPolicy.off => 'Повтор выключен',
-              RepeatPolicy.all => 'Повтор очереди',
-              RepeatPolicy.one => 'Повтор трека',
+              RepeatPolicy.off => context.l10n.repeatOff,
+              RepeatPolicy.all => context.l10n.repeatAll,
+              RepeatPolicy.one => context.l10n.repeatOne,
             },
             onPressed: c.cycleRepeat,
             icon: Icon(
@@ -140,14 +145,17 @@ class VolumeControl extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: v == 0 ? 'Включить звук' : 'Выключить звук',
+          tooltip: v == 0 ? context.l10n.unmute : context.l10n.mute,
           onPressed: () => c.setVolume(v == 0 ? 0.8 : 0),
           icon: Icon(
             v == 0 ? Icons.volume_off_rounded : (v < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
             color: VybeColors.textMuted,
           ),
         ),
-        SizedBox(width: 130, child: Slider(value: v, onChanged: c.setVolume)),
+        SizedBox(
+          width: 130,
+          child: Slider(value: v, onChanged: c.setVolume),
+        ),
       ],
     );
   }
@@ -178,13 +186,18 @@ class PlayerBar extends ConsumerWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: track == null
-                      ? Text('Ничего не играет', style: t.bodyMedium?.copyWith(color: VybeColors.textMuted))
+                      ? Text(context.l10n.nothingPlaying, style: t.bodyMedium?.copyWith(color: VybeColors.textMuted))
                       : Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodyLarge),
-                            Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall?.copyWith(color: VybeColors.textMuted)),
+                            Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.bodySmall?.copyWith(color: VybeColors.textMuted),
+                            ),
                           ],
                         ),
                 ),
@@ -192,11 +205,17 @@ class PlayerBar extends ConsumerWidget {
               ],
             ),
           ),
-          const Expanded(child: Center(child: FittedBox(child: TransportControls(size: 50)))),
+          const Expanded(
+            child: Center(child: FittedBox(child: TransportControls(size: 50))),
+          ),
           SizedBox(width: compact ? 220 : 280, child: const SeekBar(inlineTimes: true)),
           if (!compact) const VolumeControl(),
           if (onToggleQueue != null)
-            IconButton(tooltip: 'Очередь', onPressed: onToggleQueue, icon: const Icon(Icons.queue_music_rounded, color: VybeColors.textMuted)),
+            IconButton(
+              tooltip: context.l10n.queue,
+              onPressed: onToggleQueue,
+              icon: const Icon(Icons.queue_music_rounded, color: VybeColors.textMuted),
+            ),
         ],
       ),
     );
@@ -207,12 +226,15 @@ class PlayerBar extends ConsumerWidget {
         Container(
           height: 1,
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              Colors.white.withValues(alpha: 0.05),
-              VybeColors.accentLight.withValues(alpha: 0.55),
-              const Color(0xFFC07CFF).withValues(alpha: 0.3),
-              Colors.white.withValues(alpha: 0.05),
-            ], stops: const [0.15, 0.45, 0.6, 0.9]),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.05),
+                VybeColors.accentLight.withValues(alpha: 0.55),
+                const Color(0xFFC07CFF).withValues(alpha: 0.3),
+                Colors.white.withValues(alpha: 0.05),
+              ],
+              stops: const [0.15, 0.45, 0.6, 0.9],
+            ),
           ),
         ),
         bar,
@@ -250,14 +272,27 @@ class MiniPlayer extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
                 child: Row(
                   children: [
-                    Hero(tag: 'artwork', child: Artwork(track: track, size: 42)),
+                    Hero(
+                      tag: 'artwork',
+                      child: Artwork(track: track, size: 42),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-                          Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall?.copyWith(color: VybeColors.textMuted)),
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.bodySmall?.copyWith(color: VybeColors.textMuted),
+                          ),
                         ],
                       ),
                     ),
@@ -271,7 +306,12 @@ class MiniPlayer extends ConsumerWidget {
                   ],
                 ),
               ),
-              LinearProgressIndicator(value: progress, minHeight: 2, color: VybeColors.accent, backgroundColor: Colors.transparent),
+              LinearProgressIndicator(
+                value: progress,
+                minHeight: 2,
+                color: VybeColors.accent,
+                backgroundColor: Colors.transparent,
+              ),
             ],
           ),
         ),
@@ -294,7 +334,7 @@ class QueueList extends ConsumerWidget {
     if (s.queue.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('Очередь пуста', style: t.bodyMedium?.copyWith(color: VybeColors.textMuted)),
+        child: Text(context.l10n.queueEmpty, style: t.bodyMedium?.copyWith(color: VybeColors.textMuted)),
       );
     }
     final items = [for (var i = s.index; i < s.queue.length; i++) i];
@@ -305,13 +345,15 @@ class QueueList extends ConsumerWidget {
       itemCount: items.length + (s.radioLoading ? 1 : 0),
       itemBuilder: (_, k) {
         if (k == items.length) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.all(12),
-            child: Row(children: [
-              SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-              SizedBox(width: 10),
-              Text('Подбираем похожие треки…', style: TextStyle(color: VybeColors.textMuted)),
-            ]),
+            child: Row(
+              children: [
+                SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 10),
+                Text(context.l10n.findingSimilar, style: TextStyle(color: VybeColors.textMuted)),
+              ],
+            ),
           );
         }
         final i = items[k];
@@ -324,7 +366,7 @@ class QueueList extends ConsumerWidget {
           trailing: i == s.index
               ? const SizedBox(width: 8)
               : IconButton(
-                  tooltip: 'Убрать из очереди',
+                  tooltip: context.l10n.removeFromQueue,
                   onPressed: () => c.removeAt(i),
                   icon: const Icon(Icons.close_rounded, size: 18, color: VybeColors.textMuted),
                 ),
@@ -351,11 +393,26 @@ class NowPlayingPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Column(
               children: [
-                AspectRatio(aspectRatio: 1, child: LayoutBuilder(builder: (_, c) => Artwork(track: track, size: c.maxWidth, radius: VybeRadius.lg))),
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: LayoutBuilder(
+                    builder: (_, c) => Artwork(track: track, size: c.maxWidth, radius: VybeRadius.lg),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Text(track?.title ?? 'Ничего не играет', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  track?.title ?? context.l10n.nothingPlaying,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 2),
-                Text(track?.artist ?? 'Найдите трек в поиске', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(color: VybeColors.textMuted)),
+                Text(
+                  track?.artist ?? context.l10n.findInSearch,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.bodyMedium?.copyWith(color: VybeColors.textMuted),
+                ),
                 const SizedBox(height: 12),
                 const SeekBar(),
                 const SizedBox(height: 4),
@@ -367,11 +424,13 @@ class NowPlayingPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 8, 4),
             child: Row(
               children: [
-                Expanded(child: Text('Очередь', style: t.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+                Expanded(
+                  child: Text(context.l10n.queue, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ),
                 TextButton(
                   onPressed: ref.read(playerProvider.notifier).clearUpNext,
                   style: TextButton.styleFrom(foregroundColor: VybeColors.textMuted),
-                  child: const Text('Очистить'),
+                  child: Text(context.l10n.clear),
                 ),
               ],
             ),
@@ -388,12 +447,15 @@ class NowPlayingScreen extends ConsumerWidget {
   const NowPlayingScreen({super.key});
 
   static Route<void> route() => PageRouteBuilder(
-        pageBuilder: (_, _, _) => const NowPlayingScreen(),
-        transitionsBuilder: (_, a, _, child) => SlideTransition(
-          position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
-      );
+    pageBuilder: (_, _, _) => const NowPlayingScreen(),
+    transitionsBuilder: (_, a, _, child) => SlideTransition(
+      position: Tween(
+        begin: const Offset(0, 1),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+      child: child,
+    ),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -416,8 +478,13 @@ class NowPlayingScreen extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
                   child: Row(
                     children: [
-                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32)),
-                      Expanded(child: Text('Сейчас играет', textAlign: TextAlign.center, style: t.titleSmall)),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
+                      ),
+                      Expanded(
+                        child: Text(context.l10n.nowPlaying, textAlign: TextAlign.center, style: t.titleSmall),
+                      ),
                       const SizedBox(width: 48),
                     ],
                   ),
@@ -429,7 +496,10 @@ class NowPlayingScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       LayoutBuilder(
-                        builder: (_, c) => Hero(tag: 'artwork', child: Artwork(track: track, size: c.maxWidth, radius: VybeRadius.lg)),
+                        builder: (_, c) => Hero(
+                          tag: 'artwork',
+                          child: Artwork(track: track, size: c.maxWidth, radius: VybeRadius.lg),
+                        ),
                       ),
                       const SizedBox(height: 28),
                       Row(
@@ -438,8 +508,18 @@ class NowPlayingScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(track?.title ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
-                                Text(track?.artist ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodyLarge?.copyWith(color: VybeColors.textMuted)),
+                                Text(
+                                  track?.title ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  track?.artist ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.bodyLarge?.copyWith(color: VybeColors.textMuted),
+                                ),
                               ],
                             ),
                           ),
@@ -451,7 +531,10 @@ class NowPlayingScreen extends ConsumerWidget {
                       const SizedBox(height: 8),
                       const FittedBox(child: TransportControls(size: 68)),
                       const SizedBox(height: 28),
-                      Align(alignment: Alignment.centerLeft, child: Text('Далее', style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600))),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(context.l10n.upNext, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      ),
                       const SizedBox(height: 8),
                     ],
                   ),

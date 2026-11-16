@@ -141,13 +141,28 @@ class GlassBackdropPainter extends CustomPainter {
     final edgePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..shader = ui.Gradient.linear(Offset(w * 0.3, 0), Offset(w, h * 0.3), [
-        VybeColors.accentLight.withValues(alpha: 0.0),
-        VybeColors.accentLight.withValues(alpha: 0.75),
-        const Color(0xFFE2B8FF).withValues(alpha: 0.35),
-      ], [0.0, 0.6, 1.0]);
-    canvas.drawPath(edge, edgePaint..strokeWidth = 4..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-    canvas.drawPath(edge, edgePaint..strokeWidth = 1.2..maskFilter = null);
+      ..shader = ui.Gradient.linear(
+        Offset(w * 0.3, 0),
+        Offset(w, h * 0.3),
+        [
+          VybeColors.accentLight.withValues(alpha: 0.0),
+          VybeColors.accentLight.withValues(alpha: 0.75),
+          const Color(0xFFE2B8FF).withValues(alpha: 0.35),
+        ],
+        [0.0, 0.6, 1.0],
+      );
+    canvas.drawPath(
+      edge,
+      edgePaint
+        ..strokeWidth = 4
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawPath(
+      edge,
+      edgePaint
+        ..strokeWidth = 1.2
+        ..maskFilter = null,
+    );
     canvas.restore();
   }
 
@@ -183,8 +198,18 @@ class GlassBackdropPainter extends CustomPainter {
         VybeColors.accentLight.withValues(alpha: 0.7),
         VybeColors.accent.withValues(alpha: 0.0),
       ]);
-    canvas.drawPath(crest, crestPaint..strokeWidth = 5..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
-    canvas.drawPath(crest, crestPaint..strokeWidth = 1.2..maskFilter = null);
+    canvas.drawPath(
+      crest,
+      crestPaint
+        ..strokeWidth = 5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawPath(
+      crest,
+      crestPaint
+        ..strokeWidth = 1.2
+        ..maskFilter = null,
+    );
     canvas.restore();
   }
 
@@ -217,15 +242,30 @@ class GlassRimPainter extends CustomPainter {
     final to = Alignment(-corner.x, -corner.y).withinRect(rect);
     final light = Paint()
       ..style = PaintingStyle.stroke
-      ..shader = ui.Gradient.linear(from, Offset.lerp(from, to, 0.75)!, [
-        const Color(0xFFD8C8FF).withValues(alpha: 0.75 * k),
-        const Color(0xFFC07CFF).withValues(alpha: 0.4 * k), // magenta shimmer
-        VybeColors.accent.withValues(alpha: 0.18 * k),
-        VybeColors.accent.withValues(alpha: 0),
-      ], [0.0, 0.18, 0.45, 1.0]);
+      ..shader = ui.Gradient.linear(
+        from,
+        Offset.lerp(from, to, 0.75)!,
+        [
+          const Color(0xFFD8C8FF).withValues(alpha: 0.75 * k),
+          const Color(0xFFC07CFF).withValues(alpha: 0.4 * k), // magenta shimmer
+          VybeColors.accent.withValues(alpha: 0.18 * k),
+          VybeColors.accent.withValues(alpha: 0),
+        ],
+        [0.0, 0.18, 0.45, 1.0],
+      );
     // Soft bloom + crisp line.
-    canvas.drawRRect(rrect, light..strokeWidth = 3..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
-    canvas.drawRRect(rrect, light..strokeWidth = 1..maskFilter = null);
+    canvas.drawRRect(
+      rrect,
+      light
+        ..strokeWidth = 3
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    canvas.drawRRect(
+      rrect,
+      light
+        ..strokeWidth = 1
+        ..maskFilter = null,
+    );
   }
 
   @override
@@ -253,10 +293,10 @@ class _AmbientPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     void glow(Offset c, double r, Color color, double a) => canvas.drawCircle(
-          c,
-          r,
-          Paint()..shader = ui.Gradient.radial(c, r, [color.withValues(alpha: a), color.withValues(alpha: 0)]),
-        );
+      c,
+      r,
+      Paint()..shader = ui.Gradient.radial(c, r, [color.withValues(alpha: a), color.withValues(alpha: 0)]),
+    );
     glow(Offset(0, s.height), s.shortestSide * 0.9, VybeColors.accent, 0.14);
     glow(Offset(s.width, 0), s.shortestSide * 0.7, const Color(0xFF6D3BF5), 0.10);
   }
