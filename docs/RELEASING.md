@@ -20,13 +20,16 @@ The version lives in three places that must agree (CI checks this with `tool/che
    ```
 
 3. Commit, open a pull request and merge it into `main`.
-4. Tag the merge commit and push the tag:
+4. Start the release, either way:
+   - **From GitHub:** Actions → **Release** → *Run workflow* on `main`, enter `0.2.0`.
+     The workflow creates the `v0.2.0` tag on that commit.
+   - **From git:** tag the merge commit and push the tag:
 
-   ```bash
-   git checkout main && git pull
-   git tag v0.2.0
-   git push origin v0.2.0
-   ```
+     ```bash
+     git checkout main && git pull
+     git tag v0.2.0
+     git push origin v0.2.0
+     ```
 
 5. The **Release** workflow builds every platform and publishes
    [a GitHub release](https://github.com/sawilove/vybe/releases) with the changelog section as notes:
