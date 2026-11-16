@@ -1,0 +1,58 @@
+name: vybe
+description: "VYBE — lightweight open-source music streaming client. Your sound. Your freedom."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  crypto: ^3.0.8
+  file_picker: ^13.4.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^3.5.0
+  google_fonts: ^9.0.0
+  http: ^1.6.0
+  intl: any
+  just_audio: ^0.10.6
+  just_audio_background: ^0.0.1-beta.17
+  just_audio_media_kit: ^2.1.0
+  material_ui: ^1.1.0
+  media_kit_libs_linux: ^1.2.1
+  media_kit_libs_windows_audio: ^1.0.9
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.6
+  url_launcher: ^6.3.3
+  youtube_explode_dart: ^3.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/banners/
+
+# App icons are rendered from the logo painter: see tool/render_icons_test.dart.
+flutter_launcher_icons:
+  image_path: assets/icon/icon.png
+  android: true
+  image_path_android: assets/icon/icon_square.png
+  adaptive_icon_background: "#1B1828"
+  adaptive_icon_foreground: assets/icon/icon_foreground.png
+  ios: true
+  image_path_ios: assets/icon/icon_square.png
+  remove_alpha_ios: true
+  windows:
+    generate: true
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: assets/icon/icon.png
