@@ -61,7 +61,7 @@ jobs:
       # ---------- Android ----------
       - if: matrix.target == 'android'
         uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
+        with: { distribution: temurin, java-version: '21' }
       - if: matrix.target == 'android'
         name: Set up release signing (optional)
         env:
